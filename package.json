@@ -1,0 +1,52 @@
+{
+  "name": "koa-webapp",
+  "version": "0.2.0",
+  "description": "Generic web application implementation with built-in routing and authentication support",
+  "main": "index.js",
+  "files": [
+    "auth",
+    "router",
+    "index.js"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "koa",
+    "web",
+    "app",
+    "application",
+    "webapp",
+    "rest",
+    "api",
+    "auth",
+    "authentication",
+    "jwt",
+    "oauth2",
+    "session",
+    "cookie",
+    "router",
+    "route",
+    "routing",
+    "middleware"
+  ],
+  "author": "Bogdan Stefanescu <bogdan@quandora.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bstefanescu/koa-webapp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bstefanescu/koa-webapp/issues"
+  },
+  "homepage": "https://github.com/bstefanescu/koa-webapp#readme",
+  "dependencies": {
+    "fast-glob": "^3.2.5",
+    "jsonwebtoken": "^8.5.1",
+    "koa": "^2.13.1",
+    "koa-bodyparser": "^4.3.0",
+    "koa-compose": "^4.1.0",
+    "koa-send": "^5.0.1",
+    "path-to-regexp": "^6.2.0"
+  }
+}
