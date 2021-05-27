@@ -41,6 +41,7 @@ class AuthService {
      *   findUser: function,
      *   secret: string | array,
      *   allowAnoymous: false, // allow anonymous to access
+     *   requestTokenHeader: 'x-koa-webapp-request-token',
      *   jwt: {
      *       sign: { ... jsonwebtoken sign opts ... },
      *       verify: { ... jsonwebtoken verify opts ... },
@@ -62,6 +63,9 @@ class AuthService {
         if (!opts.secret || !opts.secret.length) {
             throw new Error('Invalid secret option. Must be a string on a non empty array');
         }
+        if(!opts.requestTokenHeader) {
+            opts.requestTokenHeader = 'x-koa-webapp-request-token';
+        }
         this.opts = opts;
         const secretOpt = opts.secret;
         if (typeof secretOpt === 'string') {
@@ -76,19 +80,28 @@ class AuthService {
         this.admin = Object.freeze(this.createPrincipal('@admin'));
         // jwt options:
         this.jwtSignOpts = Object.assign({
-            expiresIn: "1h",
+            expiresIn: "3h",
         }, (opts.jwt && opts.jwt.sign) || {});
         this.jwtVerifyOpts = Object.assign({}, (opts.jwt && opts.jwt.verify) || {});
 
+        const defaultCookie = {
+            name: 'koa-webapp.login',
+            path: '/auth/token',
+            httpOnly: true,
+            sameSite: 'strict',
+            secure: true,
+            overwrite: true
+        }
         if (typeof opts.cookie === 'string') {
-            this.cookie = { name: opts.cookie };
+            this.cookie = Object.assign(defaultCookie, {
+                name: opts.cookie
+            });
         } else if (opts.cookie) {
-            this.cookie = opts.cookie;
-            if (!this.cookie.name) {
-                this.cookie.name = 'koa.session';
-            }
-        } else {
+            this.cookie = Object.assign(defaultCookie, opts.cookie);
+        } else if (opts.cookie === false) {
             this.cookie = false;
+        } else {
+            this.cookie = defaultCookie;
         }
 
         this.koa = new KoaAuthentication(this);
@@ -109,18 +122,12 @@ class AuthService {
     createPrincipal(name, userData) {
         let principal;
         if (userData) {
-            principal = new Principal(name, userData);
+            principal = new Principal(name).fromUser(userData);
         } else {
             if (name === '@anonymous') {
-                principal = new Principal(name, {
-                    role: 'anonymous'
-                });
-                principal.isAnonymous = true;
+                principal = new Principal(name, Principal.ANONYMOUS);
             } else if (name === '@admin') {
-                principal = new Principal(name, {
-                    role: 'admin'
-                });
-                principal.isAdmin = true;
+                principal = new Principal(name, Principal.ADMIN);
             } else {
                 throw new Error('Invalid vritual principal name: '+name+'. Only "@anonymous" and "@admin" are accepted');
             }
@@ -128,50 +135,59 @@ class AuthService {
         return principal;
     }
 
-    verifyPassword(name, password) {
+    /**
+     * Login using an username / password.
+     * If login is successfull, returns a Principal object, otherwise throws an Error.
+     * @throws UserNotFoundError or PasswordMismatchError
+     * @param {*} name
+     * @param {*} password
+     * @returns a principal object
+     */
+    passwordLogin(name, password) {
         const user = this.findUser(name);
-        if (arguments.length === 2
-            && this.hash(password) !== user.password) {
+        if (this.hash(password) !== user.password) {
             throw new PasswordMismatchError(name);
         }
         return this.createPrincipal(name, user);
     }
 
     /**
-     * Verify the given token agaisnt the registered secrets and return the corresponding user on success or null on failure
+     * Prform a login given a JWT.
+     * If login is usccessfull, returns a Principal object, otherwise throws an Error.
+     * @throws if no matching user is found or Error if token validation fails
      * @param {*} token
-     * @returns the user object or throws
+     * @returns the principal corresponding to the JWT
      */
-    verifyJWT(token) {
+    jwtLogin(token) {
+        return new Principal().fromJWT(this.verifyJWT(token));
+    }
+
+    /**
+     * Verify the given token agaisnt the registered secrets and return the decoded token
+     * @param {*} token
+     * @throws error if token fails to validate
+     * @returns the decoded token on success otherwise throws an error
+     */
+    verifyJWT(token, opts) {
+        opts = Object.assign(this.jwtVerifyOpts, opts || {});
         let decodedToken;
         for (const secret of this.secrets) {
             try {
-                decodedToken = jwt.verify(token, secret, this.jwtVerifyOpts);
+                decodedToken = jwt.verify(token, secret, opts);
                 break;
             } catch (e) {
                 // continue;
             }
         }
-        if (decodedToken) {
-            return this.createPrincipal(this.findUser(getUserNameFromJWT(decodedToken)));
+        if (!decodedToken) {
+            throw new InvalidJWTError('failed to verify');
         }
-        throw new InvalidJWTError('failed to verify');
+        return decodedToken;
     }
 
-    createJWTPayload(user) {
-        return { sub : user.name };
-    }
-
-    signJWT(user) {
-        if (user.isAuthenticated) {
-            return jwt.sign(this.createJWTPayload(user), this.secrets[0], this.jwtSignOpts);
-        } else {
-            return null;
-        }
-    }
-
-    getUserNameFromJWT(jwt) {
-        return jwt.sub;
+    signJWT(payload, opts) {
+        opts = Object.assign(this.jwtSignOpts, opts || {});
+        return jwt.sign(payload, this.secrets[0], this.jwtSignOpts);
     }
 }
 

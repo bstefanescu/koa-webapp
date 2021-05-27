@@ -81,7 +81,8 @@ class WebApp {
         router.post('/auth/login', auth.koa.loginMiddleware());
         router.post('/auth/logout', auth.koa.logoutMiddleware());
         // api router
-        const apiRouter = router.mount(this.opts.api.prefix)//.filter(auth.koa.authMiddleware());
+        const apiRouter = router.mount(this.opts.api.prefix);
+        apiRouter.filter(auth.koa.authMiddleware());
         apiRouter.load(this.resolveFile(this.opts.api.files));
     }
 

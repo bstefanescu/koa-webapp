@@ -63,21 +63,13 @@ class Router {
 
     filter() {
         var ar = Array.from(arguments).flat();
-        if (this._filters) {
-            this._filters.push.apply(this._filters, ar);
-        } else {
-            this._filters = ar;
-        }
+        this._filters.push.apply(this._filters, ar);
         return this;
     }
 
     fallback() {
         var ar = Array.from(arguments).flat();
-        if (this._fallback) {
-            this._fallback.push.apply(this._fallback, ar);
-        } else {
-            this._fallback = ar;
-        }
+        this._fallback.push.apply(this._fallback, ar);
         return this;
     }
 
@@ -95,12 +87,22 @@ class Router {
         const router = new Router(prefix, this._methods);
         router.services = this.services;
         router.parent = this;
+        // the sub-touter dispatch fn will be lazily computed
+        // since the router is not yet configured
+        let nestedDispatchFn;
         // use a custom endpoint
         this._endpoints.push({
             router: router,
             pattern: router._prefix,
             match: router._testPrefix,
-            dispatch: router.createDispatchFn()
+            // we should create the dispatch fn on demand since
+            // the sub router is not yet configured
+            dispatch: (ctx, next) => {
+                if (!nestedDispatchFn) {
+                    nestedDispatchFn = router.createDispatchFn();
+                }
+                return nestedDispatchFn(ctx, next);
+            }
         });
         return router;
     }
@@ -221,7 +223,7 @@ class Router {
     createDispatchFn() {
         const fns = this._filters.slice();
         // add the endpoint middleware
-        fns.push((ctx, next) => {
+        const serveEndpoint = (ctx, next) => {
             const path = ctx.path;
             let found, match;
             for (const endpoint of this._endpoints) {
@@ -239,18 +241,19 @@ class Router {
             } else {
                 return next();
             }
-        });
-
+        }
+        fns.push(serveEndpoint);
         if (this._fallback.length > 0) {
             // add the fallback middleware
             const fallbackFn = this._fallback.length > 1 ? compose(this._fallback) : this._fallback[0];
-            fns.push((ctx, next) => {
+            const serveFallback = (ctx, next) => {
                 if (!ctx._routesEndpoint) { // no match found
                     return fallbackFn(ctx, next);
                 } else {
                     return next();
                 }
-            });
+            }
+            fns.push(serveFallback);
         }
         return compose(fns);
     }

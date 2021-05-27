@@ -44,19 +44,24 @@ class KoaAuthentication {
         return this.auth;
     }
 
+    /**
+     *
+     * @param {*} ctx
+     * @param {Principal} principal
+     */
     setCookie(ctx, principal) {
         if (this.auth.cookie) {
-            const token = this.auth.signJWT(principal);
-            if (token) {
+            if (principal) {
+                const token = this.auth.signJWT(principal.toJWT());
                 ctx.cookies.set(this.auth.cookie.name, token, this.auth.cookie);
+            } else {
+                ctx.cookies.set(this.auth.cookie.name);
             }
         }
     }
 
     removeCookie(ctx) {
-        if (this.auth.cookie) {
-            ctx.cookies.set(this.auth.cookie.name);
-        }
+        this.setCookie(ctx, null);
     }
 
     getCookie(ctx) {
@@ -104,6 +109,33 @@ class KoaAuthentication {
         this.setCookie(ctx, principal);
     }
 
+    /**
+     * Get the JWT token if there is a cookie containing a jwt token (the cookie name is controlled by the cookie.name option)
+     * @param {*} ctx
+     */
+    token(ctx) {
+        if (ctx.method === 'POST' && ctx.request.header[this.auth.opts.requestTokenHeader] === 'true') {
+            try {
+                const name = this.auth.cookie && this.auth.cookie.name;
+                if (name) {
+                    const token = ctx.cookies[name];
+                    if (token) {
+                        const principal = this.auth.jwtLogin(token);
+                        const token = this.auth.signJWT(principal.toJWT());
+                        // reset the cookie expiry time
+                        ctx.cookies.set(name, token, this.auth.cookie);
+                        ctx.body = token;
+                        ctx.response.type = 'text/plain';
+                        return;
+                    }
+                }
+            } catch(e) {
+                // ignore
+            }
+        }
+        this.ctx.throw(401);
+    }
+
 
     /**
      * Restore an authenticated session if any (from session cookie or auth headers)
@@ -111,12 +143,12 @@ class KoaAuthentication {
      */
     authMiddleware(opts = {}) {
         const extract = opts.extractToken || extractToken;
-        return (ctx, next) => {
+        const jwtAuth = (ctx, next) => {
             let principal;
             const token = extract(ctx, this.auth.cookie && this.auth.cookie.name);
             if (token) {
                 try {
-                    principal = this.auth.verifyJWT(token);
+                    principal = this.auth.jwtLogin(token);
                 } catch (e) {
                     ctx.throw(401, e.message);
                 }
@@ -130,6 +162,7 @@ class KoaAuthentication {
             this.setPrincipal(ctx, principal);
             return next();
         }
+        return jwtAuth;
     }
 
 
@@ -140,7 +173,7 @@ class KoaAuthentication {
             // require koa-bodyparser
             const body = ctx.request.body;
             try {
-                const user = this.auth.verify(body[username], body[password]);
+                const principal = this.auth.passwordLogin(body[username], body[password]);
             } catch (e) {
                 ctx.throw(401, e.message);
             }
