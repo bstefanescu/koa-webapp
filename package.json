@@ -5,6 +5,8 @@
   "main": "index.js",
   "files": [
     "auth",
+    "body",
+    "error",
     "router",
     "index.js"
   ],

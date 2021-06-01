@@ -208,9 +208,8 @@ class Router {
             const files = glob.sync(patterns);
             files.forEach(file => {
                 const ResourceEndpoint = require(resolve(file));
-                const endpoint = new ResourceEndpoint(this);
+                const endpoint = new ResourceEndpoint(this.app || this);
                 endpoint.pattern = join(this._prefix, endpoint.pattern);
-                endpoint.services = this.services;
                 if (this._byPatterns[endpoint.pattern]) {
                     throw new Error('Endpoint for "'+endpoint.pattern+'" already defined');
                 }
