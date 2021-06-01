@@ -192,7 +192,7 @@ class WebApp {
             cb = port;
             port = PORT;
         }
-        this.koa.listen(port, () => {
+        return this.koa.listen(port, () => {
             if (cb) {
                 if (cb(this) === false) return; // quiet mode
             }

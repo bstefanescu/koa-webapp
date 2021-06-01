@@ -231,7 +231,6 @@ class KoaAuthentication {
                         token: token
                     };
                 } catch (e) {
-                    console.error('@@', e);
                     this.logout(ctx);
                     ctx.throw(401);
                 }

@@ -85,7 +85,7 @@ class Router {
      */
     mount(prefix) {
         const router = new Router(prefix, this._methods);
-        router.services = this.services;
+        router.app = this.app;
         router.parent = this;
         // the sub-touter dispatch fn will be lazily computed
         // since the router is not yet configured
@@ -174,6 +174,16 @@ class Router {
         return this;
     }
 
+    _newEndpoint(file, ResourceEndpoint) {
+        try {
+            return new ResourceEndpoint(this.app || this);
+        } catch(e) {
+            console.error('Failed to load endpoint "'+file+'":', e.message);
+            console.error('Not exporting an Endpoint class?');
+            throw e;
+        }
+    }
+
     getEndpointByName(name) {
         return this._byNames[name];
     }
@@ -208,8 +218,12 @@ class Router {
             const files = glob.sync(patterns);
             files.forEach(file => {
                 const ResourceEndpoint = require(resolve(file));
-                const endpoint = new ResourceEndpoint(this.app || this);
-                endpoint.pattern = join(this._prefix, endpoint.pattern);
+                const endpoint = this._newEndpoint(file, ResourceEndpoint);
+                if (endpoint.pattern === '/') { // when binding an endpoint into / inside a (child) reouter
+                    endpoint.pattern = this._prefix;
+                } else {
+                    endpoint.pattern = join(this._prefix, endpoint.pattern);
+                }
                 if (this._byPatterns[endpoint.pattern]) {
                     throw new Error('Endpoint for "'+endpoint.pattern+'" already defined');
                 }
