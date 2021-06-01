@@ -5,7 +5,6 @@ const KoaAuthentication = require('./koa.js');
 
 const USER_NOT_FOUND = 'USER_NOT_FOUND';
 const PASSWORD_MISMATCH = 'PASSWORD_MISMATCH';
-const INVALID_JWT = 'INVALID_JWT';
 
 class UserNotFoundError extends Error {
     constructor(username) {
@@ -19,14 +18,6 @@ class PasswordMismatchError extends Error {
     constructor(username) {
         super('Password mismatch for user '+ username);
         this.code = PASSWORD_MISMATCH;
-        this.username = username;
-    }
-}
-
-class InvalidJWTError extends Error {
-    constructor(msg) {
-        super('Invalid JWT: '+ msg);
-        this.code = INVALID_JWT;
         this.username = username;
     }
 }
@@ -53,7 +44,6 @@ class AuthService {
      *    oauth2: {
      *    }
      *}
-     * @param {function} findUserByNameOrEmail
      * @param {object} opts
      */
     constructor(opts = {}) {
@@ -85,7 +75,7 @@ class AuthService {
         this.jwtVerifyOpts = Object.assign({}, (opts.jwt && opts.jwt.verify) || {});
 
         const defaultCookie = {
-            name: 'koa-webapp.login',
+            name: 'koa-webapp-auth',
             path: '/auth/token',
             httpOnly: true,
             sameSite: 'strict',
@@ -145,10 +135,21 @@ class AuthService {
      */
     passwordLogin(name, password) {
         const user = this.findUser(name);
-        if (this.hash(password) !== user.password) {
+        if (user.password && this.hash(password) !== user.password) {
             throw new PasswordMismatchError(name);
         }
         return this.createPrincipal(name, user);
+    }
+
+    refreshLogin(principal) {
+        if (principal.isVirtual) {
+            // a virtual user - return back the principal
+            return principal;
+        } else {
+            // fetch the user again to re-create the principal
+            return this.createPrincipal(principal.name, this.findUser(principal.name));
+        }
+
     }
 
     /**
@@ -170,17 +171,18 @@ class AuthService {
      */
     verifyJWT(token, opts) {
         opts = Object.assign(this.jwtVerifyOpts, opts || {});
-        let decodedToken;
+        let decodedToken, error;
         for (const secret of this.secrets) {
             try {
                 decodedToken = jwt.verify(token, secret, opts);
                 break;
             } catch (e) {
+                error = e;
                 // continue;
             }
         }
         if (!decodedToken) {
-            throw new InvalidJWTError('failed to verify');
+            throw error ? error : new Error('JWT validation error');
         }
         return decodedToken;
     }
@@ -193,6 +195,5 @@ class AuthService {
 
 AuthService.USER_NOT_FOUND = USER_NOT_FOUND;
 AuthService.PASSWORD_MISMATCH = PASSWORD_MISMATCH;
-AuthService.INVALID_JWT = INVALID_JWT;
 
 module.exports = AuthService;

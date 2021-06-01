@@ -1,3 +1,4 @@
+const Principal = require("./principal");
 
 function extractTokenFromHeader(ctx) {
     if (!ctx.header && !ctx.header.authorization) {
@@ -50,14 +51,19 @@ class KoaAuthentication {
      * @param {Principal} principal
      */
     setCookie(ctx, principal) {
+        let token;
         if (this.auth.cookie) {
             if (principal) {
-                const token = this.auth.signJWT(principal.toJWT());
+                token = this.auth.signJWT(principal.toJWT());
                 ctx.cookies.set(this.auth.cookie.name, token, this.auth.cookie);
             } else {
-                ctx.cookies.set(this.auth.cookie.name);
+                // remove the cookie: we cannot use ctx.cookies.set(this.auth.cookie.name) since the cookie path is not srt
+                ctx.cookies.set(this.auth.cookie.name, '', Object.assign({}, this.auth.cookie, {
+                    expires: new Date(0)
+                }));
             }
         }
+        return token;
     }
 
     removeCookie(ctx) {
@@ -106,7 +112,7 @@ class KoaAuthentication {
 
     login(ctx, principal) {
         this.setPrincipal(ctx, principal);
-        this.setCookie(ctx, principal);
+        return this.setCookie(ctx, principal);
     }
 
     /**
@@ -114,14 +120,28 @@ class KoaAuthentication {
      * @param {*} ctx
      */
     token(ctx) {
+        if (ctx.method !== 'POST') {
+            ctx.throw(405);
+        }
+        const reqToken =  ctx.request.header[this.auth.opts.requestTokenHeader];
+        if (!reqToken) { // Anti CSRF check for browsers not supporting sameSite cookie attribute
+            ctx.throw(403);
+        }
+        if (reqToken === 'refresh') {
+            ctx.state._webappRefreshToken; // force a refresh
+        }
         if (ctx.method === 'POST' && ctx.request.header[this.auth.opts.requestTokenHeader] === 'true') {
             try {
                 const name = this.auth.cookie && this.auth.cookie.name;
                 if (name) {
-                    const token = ctx.cookies[name];
+                    let token = ctx.cookies.get(name);
                     if (token) {
                         const principal = this.auth.jwtLogin(token);
-                        const token = this.auth.signJWT(principal.toJWT());
+                        if (ctx.state._webappRefreshToken) {
+                            // recreate a principal from the user store
+                            principal = this.auth.refreshLogin(principal);
+                        } // else reuse the same principal
+                        token = this.auth.signJWT(principal.toJWT());
                         // reset the cookie expiry time
                         ctx.cookies.set(name, token, this.auth.cookie);
                         ctx.body = token;
@@ -130,12 +150,28 @@ class KoaAuthentication {
                     }
                 }
             } catch(e) {
-                // ignore
+                ctx.throw(401, null, {detail: e.message});
             }
         }
-        this.ctx.throw(401);
+
+        ctx.throw(401);
     }
 
+    /**
+     * Like `token` but refetch the user and recreate a fresh token. Usefull to update the token if the user details included in the token
+     * were modified in the user store.
+     * @param {*} ctx
+     */
+    refreshMiddleware() {
+        return ctx => {
+            ctx.state._webappRefreshToken = true;
+            return this.token(ctx);
+        }
+    }
+
+    tokenMiddleware() {
+        return this.token.bind(this);
+    }
 
     /**
      * Restore an authenticated session if any (from session cookie or auth headers)
@@ -157,7 +193,7 @@ class KoaAuthentication {
                 principal = this.auth.anonymous;
             } else {
                 // anonymous access is not allowed so we retun 401
-                ctx.throw(401, 'No authentication token found');
+                ctx.throw(401);
             }
             this.setPrincipal(ctx, principal);
             return next();
@@ -167,29 +203,46 @@ class KoaAuthentication {
 
 
     loginMiddleware(opts = {}) {
-        const username = opts.username || 'username';
-        const password = opts.password || 'password';
-        return (ctx, next) => {
-            // require koa-bodyparser
-            const body = ctx.request.body;
-            try {
-                const principal = this.auth.passwordLogin(body[username], body[password]);
-            } catch (e) {
-                ctx.throw(401, e.message);
+        const usernameKey = opts.username || 'username';
+        const passwordKey = opts.password || 'password';
+        return async (ctx, next) => {
+            if (ctx.method === 'POST') {
+                let username, password;
+                const body = await ctx.request.body; // the body is loaded on demand
+                if (body.isMultipart || body.isForm) {
+                    username = body.params[usernameKey];
+                    password = body.params[passwordKey];
+                } else if (body.isJSON) {
+                    username = body.json[usernameKey];
+                    password = body.json[passwordKey];
+                } else {
+                    ctx.throw(415, 'Only supports JSON objects or forms (urlencoded or multipart). Got: '+ctx.header['content-type']);
+                }
+                if (!username) ctx.throw(400, null, {status: 400, error: 'Username cannot be empty'});
+                if (!password) ctx.throw(400, null, {status: 400, error: 'Password cannot be empty'});
+                try {
+                    const principal = this.auth.passwordLogin(username, password);
+                    let token = this.login(ctx, principal);
+                    if (!token) {
+                        token = thid.auth.signJWT(principal.toJWT());
+                    }
+                    ctx.body = {
+                        principal: principal,
+                        token: token
+                    };
+                } catch (e) {
+                    console.error('@@', e);
+                    this.logout(ctx);
+                    ctx.throw(401);
+                }
             }
-            if (user) {
-                this.login(ctx, user);
-            } else {
-                this.logout(ctx)
-            }
-            return next();
         }
     }
 
     logoutMiddleware() {
         return (ctx, next) => {
             this.logout(ctx);
-            return next();
+            ctx.response.status = 204;
         }
     }
 

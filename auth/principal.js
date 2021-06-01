@@ -6,6 +6,10 @@ class Principal {
         this.userType = type || Principal.USER;
     }
 
+    get isVirtual() {
+        return this.userType !== Principal.USER;
+    }
+
     fromUser(userData) {
         this.uid = userData.id;
         this.email = userData.email;

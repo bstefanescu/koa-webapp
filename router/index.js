@@ -247,7 +247,7 @@ class Router {
             // add the fallback middleware
             const fallbackFn = this._fallback.length > 1 ? compose(this._fallback) : this._fallback[0];
             const serveFallback = (ctx, next) => {
-                if (!ctx._routesEndpoint) { // no match found
+                if (!ctx._routesEndpoint) { // no routes matched
                     return fallbackFn(ctx, next);
                 } else {
                     return next();

@@ -30,7 +30,6 @@ class Endpoint {
      *
      *   get(ctx, next) {
      *      ctx.body = 'Hello!';
-     *      return next();
      *   }
      * }
      *
@@ -43,7 +42,6 @@ class Endpoint {
      *
      *   get(ctx, next) {
      *      ctx.body = 'Hello!';
-     *      return next();
      *   }
      * }
      *
@@ -83,8 +81,7 @@ class Endpoint {
     }
 
     all(ctx, next) {
-        // do nothing by default
-        return next();
+        ctx.throw(405); // method not allowed
     }
 
     dispatch(ctx, next) {
