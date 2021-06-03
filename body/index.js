@@ -35,11 +35,12 @@ function getRawBodyText(koaRequest, opts) {
  */
 class Body {
 
-    constructor(ctx, type, data, raw) {
+    constructor(ctx, type, data, raw, files) {
         this.ctx = ctx;
         this.type = type;
         this.data = data;
         this.raw = raw;
+        this.files = files;
     }
 
     assertJSON(statusCode, message) {
@@ -102,14 +103,11 @@ class Body {
 
     get params() {
         switch (this.type) {
-            case 'form': return this.data;
-            case 'multipart': return this.data.params;
+            case 'form':
+            case 'multipart':
+            return this.data;
             default: return undefined;
         }
-    }
-
-    get files() {
-        return this.type === 'multipart' ? this.data.files : undefined;
     }
 
     get isForm() {
@@ -135,9 +133,11 @@ class Body {
 }
 
 async function createBody(koaRequest, opts) {
-    let type, data, raw;
+    let type, data, raw, files;
     if (koaRequest.is('multipart')) {
-        data = await parseMultipartBody(koaRequest, opts);
+        const result = await parseMultipartBody(koaRequest, opts);
+        data = result.params || {};
+        files = result.files || {};
         type = 'multipart';
     } else if (koaRequest.is('urlencoded')) {
         // by default we use qs. You can replace the querystring parser using opts.form
@@ -160,7 +160,7 @@ async function createBody(koaRequest, opts) {
     } else {
         koaRequest.ctx.throw(500, 'Attempting to read text body from an usupported request content type: '+koaRequest.headers['content-type']);
     }
-    return new Body(koaRequest.ctx, type, data, raw);
+    return new Body(koaRequest.ctx, type, data, raw, files);
 }
 
 Body.install = (koa, opts={}) => {
