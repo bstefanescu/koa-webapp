@@ -107,10 +107,11 @@ class WebApp {
      */
     setupRoutes(router, auth) {
         const prefix = this.opts.auth.prefix || '/auth';
-        router.post(path.join(prefix, 'login'), auth.koa.loginMiddleware());
-        router.post(path.join(prefix, 'logout'), auth.koa.logoutMiddleware());
-        router.post(path.join(prefix, 'token'), auth.koa.tokenMiddleware());
-        router.post(path.join(prefix, 'refresh'), auth.koa.refreshMiddleware());
+        const authRouter = router.mount(prefix);
+        authRouter.post('/login', auth.koa.loginMiddleware());
+        authRouter.post('/logout', auth.koa.logoutMiddleware());
+        authRouter.post('/token', auth.koa.tokenMiddleware());
+        authRouter.post('/refresh', auth.koa.refreshMiddleware());
     }
 
 

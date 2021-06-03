@@ -19,7 +19,7 @@ class RoutesBuilder {
 
     use(pattern, target) {
         if (!target || !(target.prototype instanceof Resource)) {
-            throw new Error('Invalid route target. Only classes extending Resource are allowed. Got: '+target);
+            throw new Error('Invalid route target. Only classes extending Resource can be registered using `use`. Use `get`, `post` etc. to register methods. Got: '+target);
         }
         const res = new target();
         res._init(this.resource.app, pattern);
@@ -59,12 +59,13 @@ class RoutesBuilder {
         return this._httpMethod('PATCH', pattern, target);
     }
 
-    methods(methods) {
+    methods(/*methods*/) {
         function createMethod(thisObj, method) {
             return (pattern, target) => {
                 return thisObj._httpMethod(method, pattern, target);
             }
         }
+        const methods = Array.from(arguments).flat();
         for (const m of methods) {
             this[m.toLowerCase()] = createMethod(this, m.toUpperCase());
         }

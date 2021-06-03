@@ -24,6 +24,21 @@ class TestWebApp extends WebApp {
     get apiRoot() {
         return require('./api/root.js');
     }
+
+    setupRoutes(router, auth) {
+        const tmRouter = router.mount('/methods');
+        tmRouter.methods('trace');
+        tmRouter.get('/', ctx => ctx.status = 202);
+        tmRouter.post('/', ctx => ctx.status = 202);
+        tmRouter.put('/', ctx => ctx.status = 202);
+        tmRouter.del('/', ctx => ctx.status = 202);
+        tmRouter.head('/', ctx => ctx.status = 202);
+        tmRouter.options('/', ctx => ctx.status = 202);
+        tmRouter.patch('/', ctx => ctx.status = 202);
+        tmRouter.trace('/', ctx => ctx.status = 202);
+        super.setupRoutes(router, auth);
+    }
+
 }
 
 let server;
@@ -37,7 +52,8 @@ const app = new TestWebApp({
         }
     },
     serve: {
-        root: path.join(__dirname, 'web')
+        root: path.join(__dirname, 'web'),
+        exclude: [ '/auth/*', '/api/*', '/methods/*' ]
     },
     //apiRoot: require('./api/root.js')
 });
@@ -137,7 +153,50 @@ describe('Test API routes', () => {
             done();
         }).catch(err => done(err));
     });
+});
 
+describe('Test HTTP method functions on main router', () => {
+    it('HEAD', done => {
+        request(server).head('/methods').expect(202, done);
+   });
+
+    it('DELETE', done => {
+        request(server).delete('/methods').expect(202, done);
+    });
+    it('PUT', done => {
+        request(server).put('/methods').expect(202, done);
+    });
+    it('OPTIONS', done => {
+        request(server).options('/methods').expect(202, done);
+    });
+    it('PATCH', done => {
+        request(server).patch('/methods').expect(202, done);
+    });
+
+    it('TRACE (custom)', done => {
+        request(server).trace('/methods').expect(202, done);
+    });
+});
+
+describe('Test HTTP method functions on Resource router', () => {
+    it('DELETE', done => {
+        request(server).delete('/api/v1/users/1234/token').expect(202, done);
+    });
+    it('PUT', done => {
+        request(server).put('/api/v1/users/1234/token').expect(202, done);
+    });
+    it('HEAD', done => {
+        request(server).head('/api/v1/users/1234/token').expect(202, done);
+    });
+    it('OPTIONS', done => {
+        request(server).options('/api/v1/users/1234/token').expect(202, done);
+    });
+    it('PATCH', done => {
+        request(server).patch('/api/v1/users/1234/token').expect(202, done);
+    });
+    it('TRACE (custom)', done => {
+        request(server).trace('/api/v1/users/1234/token').expect(202, done);
+    });
 });
 
 describe('Test Authentication', () => {
@@ -155,6 +214,7 @@ describe('Test Authentication', () => {
 
     it('POST /auth/login => 400 with invalid fields', done => {
         request(server).post('/auth/login')
+        .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
         .send({email: 'Foo', password: 'Bar'})
         .expect(400).then(res => {
@@ -165,6 +225,7 @@ describe('Test Authentication', () => {
 
     it('POST /auth/login => 401 with invalid login', done => {
         request(server).post('/auth/login')
+        .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
         .send({username: 'banned', password: 'banned'})
         .expect(401).then(res => {
@@ -194,6 +255,83 @@ describe('Test Authentication', () => {
         .set('x-koa-webapp-request-token', 'true')
         .set('Content-Type', 'application/json')
         .expect(200, done);
+    });
+
+});
+
+describe('Test Body Request', () => {
+
+    it('post json to json endpoint => body.json works as expected', done => {
+        request(server).post('/api/v1/users/postJSON')
+        .send({name: 'John'})
+        //.set('Content-Type', 'application/x-www-form-urlencoded')
+        .set('Content-Type', 'application/json')
+        .set('Accept', 'application/json')
+        .expect(200).then(res => {
+            assert.strictEqual(res.body.got.name, 'John');
+            done();
+        }).catch(err => done(err));
+    });
+
+    it('post xml to json endpoint => body.json fails', done => {
+        request(server).post('/api/v1/users/postJSON')
+        .send('<name>John</name>')
+        .set('Content-Type', 'application/xml')
+        .set('Accept', 'application/json')
+        .expect(415, done);
+    });
+
+    it('post xml to xml endpoint => body.xml works as expected', done => {
+        request(server).post('/api/v1/users/postXML')
+        .send('<name>John</name>')
+        .set('Content-Type', 'application/xml')
+        .set('Accept', 'application/json')
+        .expect(200).then(res => {
+            assert.strictEqual(res.body.got.name, 'John');
+            done();
+        }).catch(err => done(err));
+    });
+
+    it('post urlencoded to xml endpoint => body.xml works as expected', done => {
+        request(server).post('/api/v1/users/postXML')
+        .send('name=John')
+        .set('Content-Type', 'application/x-www-form-urlencoded')
+        .set('Accept', 'application/json')
+        .expect(415, done);
+    });
+
+    it('post urlencoded to form endpoint => body.params works as expected', done => {
+        request(server).post('/api/v1/users/postUrlencoded')
+        .send('name=John')
+        .set('Content-Type', 'application/x-www-form-urlencoded')
+        .set('Accept', 'application/json')
+        .expect(200).then(res => {
+            assert.strictEqual(res.body.got.name, 'John');
+            done();
+        }).catch(err => done(err));
+    });
+
+    it('post multipart to multipart endpoint => body.params works as expected', done => {
+        request(server).post('/api/v1/users/postMultipart')
+        .field('name', 'John')
+        .attach('note', __filename)
+        .set('Content-Type', 'multipart/form-data')
+        .set('Accept', 'application/json')
+        .expect(200).then(res => {
+            assert.strictEqual(res.body.got.name, 'John');
+            done();
+        }).catch(err => done(err));
+    });
+
+    it('post text/* to text endpoint => body.text works as expected', done => {
+        request(server).post('/api/v1/users/postText')
+        .send('bla')
+        .set('Content-Type', 'text/plain')
+        .set('Accept', 'application/json')
+        .expect(200).then(res => {
+            assert.strictEqual(res.body.got, 'bla');
+            done();
+        }).catch(err => done(err));
     });
 
 });

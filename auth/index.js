@@ -22,7 +22,6 @@ class PasswordMismatchError extends Error {
     }
 }
 
-
 class AuthService {
 
     /**

@@ -7,7 +7,7 @@ An application model and a set of [koa](https://koajs.com/) middlewares which pr
 
 Features:
 
-1. **WebApp**
+1. **WebApp**  \
     A configurable class defining a web application which automatically configure the right middlewares to create a backend for a Single Application Page.
 1. **Router**
     * classic route definitions (in the style of [koa-router]())
@@ -16,9 +16,9 @@ Features:
     * Form based login (generates a JWT)
     * JWT stateless authentication
     * Possibility to integrate OAuth2 login flows using [passportjs](http://www.passportjs.org/), [grant](https://github.com/simov/grant) etc.
-3. **Request body**
+3. **Request body**  \
     On demand body support to easily access the content send by the browser. (the body will not be read if a middleware is not accessing it)
-4. **Error Handling**
+4. **Error Handling**  \
     Better error handling then the default koa errors. Convert errors to json or html depending on the browser accepted content types.
 
 You can use any of the provided middlewares directly in **koa** without using the WebApp class, which is a helper to easily configure all required middlewares.

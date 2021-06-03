@@ -15,7 +15,7 @@ function json(data, error, opts) {
     if (opts.json) {
         content = opts.json(data, error, opts);
     }
-    return content ? content : JSON.stringify(data);
+    return JSON.stringify(content ? content : data);
 }
 
 function html(data, error, opts) {
@@ -64,7 +64,7 @@ function getContentType(ctx, ctype) {
         type = ctx.accepts(ctype);
     }
     if (!type) {
-        type = ctx.accepts('json', 'html');
+        type = ctx.accepts('html', 'json', 'text');
     }
     return type;
 }

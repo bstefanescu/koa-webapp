@@ -49,26 +49,24 @@ function normalizePrefix(prefix) {
 }
 
 class Router {
-    constructor(prefix, methods) {
-        this._methods = methods;
+    constructor(prefix) {
         this._prefix = normalizePrefix(prefix);
-        this._methods = methods === false ? [] : methods || Router.methods;
         this._chain = [];
         this.notFoundMessage = null;
         this.app = null;
-        if (methods) {
-            this.methods(methods);
-        }
     }
 
-    methods(methods) {
-        function createMethod(thisObj, method) {
-            return (pattern, target) => {
-                return thisObj._httpMethod(method, pattern, target);
+    methods(/*methods*/) {
+        if (arguments.length > 0) {
+            function createMethod(thisObj, method) {
+                return (pattern, target) => {
+                    return thisObj.use(method, pattern, target);
+                }
             }
-        }
-        for (const m of methods) {
-            this[m.toLowerCase()] = createMethod(this, m.toUpperCase());
+            const methods = Array.from(arguments).flat();
+            for (const m of methods) {
+                this[m.toLowerCase()] = createMethod(this, m.toUpperCase());
+            }
         }
         return this;
     }
@@ -79,6 +77,7 @@ class Router {
             ctx.throw(404, this.notFoundMessage);
         });
         const chainFn = compose(this._chain);
+
         if (this._prefix === '/') {
             return chainFn;
         } else {
@@ -107,7 +106,7 @@ class Router {
 
 
     mount(prefix) {
-        const router = new Router(join(this._prefix, prefix), this._methods);
+        const router = new Router(join(this._prefix, prefix));
         router.app = this.app;
         router.parent = this;
 
@@ -139,7 +138,7 @@ class Router {
         }
         if (pattern) {
             // add the current router prefix to the pattern
-            pattern = join(this._prefix, pattern);
+            pattern = !pattern || pattern === '/' ? this._prefix : join(this._prefix, pattern);
         }
         const type = typeof target;
         if (target.prototype instanceof Resource) {
