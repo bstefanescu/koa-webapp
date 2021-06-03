@@ -1,59 +1,24 @@
 const crypto = require('crypto');
 const path = require('path');
-const callsites = require('callsites');
 const Koa = require('koa');
 const AuthService = require('./auth');
 const Router = require('./router');
 const errorHandler = require('./error')
-const Endpoint = require('./router/endpoint');
+const Resource = require('./router/resource');
 const Body = require('./body');
 const PORT = process.env.PORT || 8080;
-
-/**
- * Get the file defining the class extending the WebApp which is actually instantiated
- * Returns null if not found or the WebApp class is directly instatiated
- * This function must be used in the constructor.
- */
-function getWebappInstanceFile(callsites) {
-    let file;
-    for (callsite of callsites) {
-        if (callsite.isConstructor()) {
-            file = callsite.getFileName();
-        } else {
-            break;
-        }
-    }
-    return file && file !== __filename ? file : null;
-}
-
-/**
- * Create a file resolver depending on how the WebApp was instantiated.
- * If the WebApp class which is instantiated is a custom class (extending the WebApp class)
- * then it return a file resolver which resolve files realtive to the file containing the derived class definition
- * otherwise if creates a file resolver using process.cwd() as the base directory.
- * This function must be used in the constructor.
- */
-function createFileResolver(callsites) {
-    const file = getWebappInstanceFile(callsites);
-    const dir = file ? path.dirname(file) : process.cwd();
-    return (filePath) => path.resolve(dir, filePath);
-}
 
 function createOptions(opts) {
     opts = Object.assign({
         prefix: '/',
+        apiPrefix: '/api/v1',
         noFoundMessage: 'Resource not found',
         proxy: false,
-        api:{},
         auth:{},
         serve:{},
         body: {},
         error:{}
     }, opts || {});
-    opts.api = Object.assign({
-        files: 'api/**.js',
-        prefix: '/api/v1'
-    }, opts.api);
     opts.auth = Object.assign({
         prefix: '/auth'
     }, opts.auth);
@@ -75,12 +40,10 @@ class WebApp {
      * opts: {
      *   proxy, // .. and other koa props
      *   prefix: '/',
+     *   apiPrefix: '/api/v1',
+     *   apiRoot: RootResourceClass,
      *   noFoundMessage: '',
      *   error: false | object, if explicitly set to false - no custom error handler is set
-     *   api: {
-     *     files: 'api/**.js',
-     *     prefix: '/api/v1'
-     *   },
      *   auth: {
      *      prefix: '/auth',
      *      ... auth options ...
@@ -95,14 +58,19 @@ class WebApp {
      */
     constructor(opts = {}) {
         this.opts = createOptions(opts);
-        this.resolveFile = createFileResolver(callsites());
+        if (!this.apiRoot) { // you can use a getter in the extending class
+            this.apiRoot = this.opts.apiRoot;
+        }
+        this.apiPrefix = this.opts.apiPrefix;
+        if (this.findUser) {
+            this.opts.auth.findUser = this.findUser.bind(this);
+        }
         this.koa = new Koa(this.opts);
         this.koa.proxy = !!this.opts.proxy;
         this.router = new Router(this.opts.prefix || '/');
         this.router.app = this;
-        this.auth = new AuthService(Object.assign({
-            findUser: this.findUser.bind(this)
-        }, this.opts.auth));
+        this.router.notFoundMessage = this.opts.notFoundMessage;
+        this.auth = new AuthService(this.opts.auth);
         if (this.opts.error !== false) {
             this.koa.context.onerror = this.errorHandler
                 ? this.errorHandler.bind(this)
@@ -110,15 +78,8 @@ class WebApp {
         }
         Body.install(this.koa);
         this.setup();
-        // throw a 404 error if no routes matches
-        // to force the custom error handler to be used to format the 404 error
-        if (this.opts.error !== false) {
-            this.router.fallback(ctx => {
-                ctx.throw(404, opts.notFoundMessage);
-            });
-        }
         // add routes
-        this.koa.use(this.router.routes());
+        this.koa.use(this.router.middleware());
     }
 
     findUser(nameOrEmail) {
@@ -154,13 +115,15 @@ class WebApp {
 
 
     setupApiFilters(apiRouter, auth) {
-        apiRouter.filter(auth.koa.authMiddleware());
+        apiRouter.use(auth.koa.authMiddleware());
     }
 
     setupApiRoutes(router) {
-        const apiRouter = router.mount(this.opts.api.prefix);
-        this.setupApiFilters(apiRouter, this.auth);
-        apiRouter.load(this.resolveFile(this.opts.api.files));
+        if (this.apiRoot) {
+            const apiRouter = router.mount(this.apiPrefix);
+            this.setupApiFilters(apiRouter, this.auth);
+            apiRouter.use('/', this.apiRoot);
+        }
     }
 
     /**
@@ -202,5 +165,5 @@ class WebApp {
     }
 }
 
-WebApp.Endpoint = Endpoint;
+WebApp.Resource = Resource;
 module.exports = WebApp;

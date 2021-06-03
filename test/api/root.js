@@ -1,11 +1,7 @@
 const WebApp = require('../..');
+const Users = require('./users');
 
-class RootEndpoint extends WebApp.Endpoint {
-
-    constructor(app) {
-        super('/');
-        this.app = app;
-    }
+class Root extends WebApp.Resource {
 
     get(ctx) {
         ctx.body = {
@@ -13,6 +9,10 @@ class RootEndpoint extends WebApp.Endpoint {
         }
     }
 
+    routes(router) {
+        router.use('/users', Users);
+    }
+
 }
 
-module.exports = RootEndpoint;
+module.exports = Root;

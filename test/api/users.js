@@ -1,11 +1,7 @@
 const WebApp = require('../../');
+const User = require('./user');
 
-class UsersEndpoint extends WebApp.Endpoint {
-
-    constructor(app) {
-        super('/users');
-        this.app = app;
-    }
+class Users extends WebApp.Resource {
 
     async post(ctx) {
         const body = await ctx.request.body;
@@ -16,6 +12,9 @@ class UsersEndpoint extends WebApp.Endpoint {
         }
     }
 
+    routes(router) {
+        router.use('/:userId', User);
+    }
 }
 
-module.exports = UsersEndpoint;
+module.exports = Users;

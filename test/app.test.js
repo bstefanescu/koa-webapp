@@ -17,6 +17,13 @@ class TestWebApp extends WebApp {
             role: 'admin'
         }
     }
+    setupFilters(router) {
+        router.get('/from', '/to'); // a redirect
+    }
+
+    get apiRoot() {
+        return require('./api/root.js');
+    }
 }
 
 let server;
@@ -32,9 +39,7 @@ const app = new TestWebApp({
     serve: {
         root: path.join(__dirname, 'web')
     },
-    api: {
-        files: path.join(__dirname, 'api/**.js')
-    }
+    //apiRoot: require('./api/root.js')
 });
 app.version = '1.0';
 
@@ -58,6 +63,10 @@ describe('Test static routes', () => {
             assert.strictEqual(res.text, 'body { color:red }')
             done();
         }).catch(err => done(err));
+    });
+
+    it('GET /from => redirect to /to', done => {
+        request(server).get('/from').expect(301, done);
     });
 
 });
@@ -115,6 +124,16 @@ describe('Test API routes', () => {
         .expect('Content-Type', /json/)
         .then(res => {
             assert.strictEqual(res.body.uid, '123')
+            done();
+        }).catch(err => done(err));
+    });
+
+    it('GET /api/v1/users/:userId/token => 200', done => {
+        request(server).get('/api/v1/users/1234/token').expect(200)
+        .expect('Content-Type', /json/)
+        .then(res => {
+            assert.strictEqual(res.body.uid, '1234')
+            assert.strictEqual(res.body.token, 'bla')
             done();
         }).catch(err => done(err));
     });

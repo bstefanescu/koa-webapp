@@ -1,3 +1,9 @@
+const { match } = require('path-to-regexp');
+
+function decode(val) {
+    return val ? decodeURIComponent(val) : val;
+}
+
 // */a/b
 function prefixMatcher(pattern, strict) {
     // the leading * or + was removed from path
@@ -28,7 +34,7 @@ function suffixMatcher(pattern, strict) {
     }
 }
 
-function createMatcher(pattern) {
+function createSimpleMatcher(pattern) {
     if (pattern.endsWith('*')) {
         return suffixMatcher(pattern.substring(0,pattern.length-1));
     } else if (pattern.endsWith('+')) {
@@ -48,4 +54,23 @@ function createMatcher(pattern) {
     }
 }
 
-module.exports = createMatcher;
+
+function createMatcher(pattern) {
+    if (pattern.indexOf(':') < 0 && pattern.indexOf('(') < 0) {
+        // static, prefix or suffix pattern
+        return createSimpleMatcher(pattern);
+    } else {
+        // a variable / regex pattern
+        return match(pattern, { decode: decode });
+    }
+}
+
+function createRegexpMatcher(pattern) {
+    return match(pattern, { decode: decode });
+}
+
+module.exports = {
+    createMatcher,
+    createSimpleMatcher,
+    createRegexpMatcher
+};

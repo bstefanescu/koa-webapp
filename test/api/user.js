@@ -1,11 +1,6 @@
 const WebApp = require('../../');
 
-class UserEndpoint extends WebApp.Endpoint {
-
-    constructor(app) {
-        super('/users/:userId');
-        this.app = app;
-    }
+class User extends WebApp.Resource {
 
     get(ctx) {
         ctx.body = {
@@ -15,6 +10,13 @@ class UserEndpoint extends WebApp.Endpoint {
         }
     }
 
+    getToken(ctx) {
+        ctx.body = {token: 'bla', 'uid': ctx.params.userId}
+    }
+
+    routes(router) {
+        router.get('/token', this.getToken)
+    }
 }
 
-module.exports = UserEndpoint;
+module.exports = User;

@@ -3,7 +3,7 @@
 */
 const path = require('path');
 const send = require('koa-send');
-const createMatcher = require('./matchers.js');
+const { createSimpleMatcher } = require('./matchers.js');
 
 
 function serve(root, opts = {}) {
@@ -28,7 +28,7 @@ function serve(root, opts = {}) {
         sendOpts.index = 'index.html';
     }
 
-    const exclude = opts.exclude ? opts.exclude.map(pattern => createMatcher(pattern)) : null;
+    const exclude = opts.exclude ? opts.exclude.map(pattern => createSimpleMatcher(pattern)) : null;
 
     const match = (ctx) => {
         // only accept GET and HEAD
