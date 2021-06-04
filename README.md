@@ -349,6 +349,9 @@ You can access the body content either with body.data, body.json, body.xml, body
 * body.text is an alais for body.raw
 * body.data is the same as body.json (if a json) or as bodu.xml (if an xml) or as body.params if a multipart or urlencoded content.
 
+
+**Note** that the body is only consumed on demand (i.e. if you read the `ctx.request.body` property)
+
 ### Returning errors to the client
 
 To return an error simple use the `ctx.throw()` method. The error handler will take care to write the error as a JSON or as an HTML content depending on the Accept headers.
