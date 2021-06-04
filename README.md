@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.com/bstefanescu/koa-webapp.svg?branch=main)](https://travis-ci.com/bstefanescu/koa-webapp)
 [![codecov](https://codecov.io/gh/bstefanescu/koa-webapp/branch/main/graph/badge.svg?token=X4GB9MUWP2)](https://codecov.io/gh/bstefanescu/koa-webapp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+
 
 An application model and a set of [koa](https://koajs.com/) middlewares which provides a minimal structure to build nodejs web applications. It is ready to use to serve a Single Application Page. For more complex applications you will need to add custom routes or authentication logic.
 
