@@ -57,14 +57,6 @@ class TestWebApp extends WebApp {
         tmRouter.patch('/', ctx => ctx.status = 202);
         tmRouter.trace('/', ctx => ctx.status = 202);
         super.setupRoutes(router, auth);
-
-        // we are calling the overriden methods to boost code coverage
-        // otherwise nyx will report these default value getters were not tested
-        super.apiRoot;
-        super.serveRoot;
-        super.serveExclude;
-        super.allowAnonymous;
-        super.authCookie;
     }
 
 }
