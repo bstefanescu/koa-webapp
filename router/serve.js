@@ -5,7 +5,19 @@ const path = require('path');
 const send = require('koa-send');
 const { createSimpleMatcher } = require('./matchers.js');
 
-
+/**
+ * Options:
+ *
+ * {
+ *   root: 'web',
+ *   prefix: '/',
+ *   exclude: ['/api/*', '/auth/*']
+ * }
+ *
+ * @param {*} root
+ * @param {*} opts
+ * @returns
+ */
 function serve(root, opts = {}) {
     if (!root) {
         root = process.cwd();

@@ -32,16 +32,12 @@ class AuthService {
      *   secret: string | array,
      *   allowAnoymous: false, // allow anonymous to access
      *   requestTokenHeader: 'x-koa-webapp-request-token',
-     *   jwt: {
-     *       sign: { ... jsonwebtoken sign opts ... },
-     *       verify: { ... jsonwebtoken verify opts ... },
-     *    },
-     *    cookie: false | true | string | {
+     *   jwtSignOpts: { ... jsonwebtoken sign opts ... },
+     *   jwtVerifyOpts: { ... jsonwebtoken verify opts ... },
+     *   cookie: false | true | string | {
      *       name: 'koa.session',
      *       options: { ... cookies.set options ... }
-     *    },
-     *    oauth2: {
-     *    }
+     *   }
      *}
      * @param {object} opts
      */
@@ -70,8 +66,8 @@ class AuthService {
         // jwt options:
         this.jwtSignOpts = Object.assign({
             expiresIn: "3h",
-        }, (opts.jwt && opts.jwt.sign) || {});
-        this.jwtVerifyOpts = Object.assign({}, (opts.jwt && opts.jwt.verify) || {});
+        }, opts.jwtSignOpts || {});
+        this.jwtVerifyOpts = Object.assign({}, opts.jwtVerifyOpts || {});
 
         const defaultCookie = {
             name: 'koa-webapp-auth',

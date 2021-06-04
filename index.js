@@ -7,76 +7,25 @@ const errorHandler = require('./error')
 const Resource = require('./router/resource');
 const Body = require('./body');
 
-function createOptions(opts) {
-    opts = Object.assign({
-        prefix: '/',
-        apiPrefix: '/api/v1',
-        noFoundMessage: 'Resource not found',
-        proxy: false,
-        auth:{},
-        serve:{},
-        body: {},
-        error:{}
-    }, opts || {});
-    opts.auth = Object.assign({
-        prefix: '/auth'
-    }, opts.auth);
-    opts.serve = Object.assign({
-        root: 'web',
-        prefix: '/',
-        exclude: ['/api/*', '/auth/*']
-    }, opts.serve);
-
-    if (!opts.auth.secret || !opts.auth.secret.length) {
-        // generate a secret
-        opts.auth.secret = [ crypto.randomBytes(48).toString('hex') ];
-    }
-    return opts;
-}
-
 class WebApp {
-    /**
-     * opts: {
-     *   proxy, // .. and other koa props
-     *   prefix: '/',
-     *   apiPrefix: '/api/v1',
-     *   apiRoot: RootResourceClass,
-     *   noFoundMessage: '',
-     *   error: false | object, if explicitly set to false - no custom error handler is set
-     *   auth: {
-     *      prefix: '/auth',
-     *      ... auth options ...
-     *   },
-     *   serve: {
-     *      root: 'web',
-     *      prefix: '/',
-     *      exclude: ['/api/*', '/auth/*']
-     *   }
-     * }
-     * @param {object} opts
-     */
-    constructor(opts = {}) {
-        this.opts = createOptions(opts);
-        if (!this.apiRoot) { // you can use a getter in the extending class
-            this.apiRoot = this.opts.apiRoot;
-        }
-        this.apiPrefix = this.opts.apiPrefix;
-        if (this.findUser) {
-            this.opts.auth.findUser = this.findUser.bind(this);
-        }
-        this.koa = new Koa(this.opts);
+    constructor() {
+        this.koa = new Koa();
         this.koa.webapp = this;
-        this.koa.proxy = !!this.opts.proxy;
-        this.router = new Router(this.opts.prefix || '/');
+        this.koa.proxy = !!this.proxy;
+        this.koa.context.onerror = errorHandler(this.errorHandlerOptions);
+        this.router = new Router(this.prefix || '/');
         this.router.app = this;
-        this.router.notFoundMessage = this.opts.notFoundMessage;
-        this.auth = new AuthService(this.opts.auth);
-        if (this.opts.error !== false) {
-            this.koa.context.onerror = this.errorHandler
-                ? this.errorHandler.bind(this)
-                : errorHandler(this.opts.error);
-        }
-        Body.install(this.koa);
+        this.router.notFoundMessage = this.notFoundMessage;
+        this.auth = new AuthService({
+            findUser: this.findUser.bind(this),
+            secret: this.secret,
+            allowAnonymous: this.allowAnonymous,
+            requestTokenHeader: this.requestTokenHeader,
+            cookie: this.authCookie,
+            jwtSignOpts: this.jwtSignOpts,
+            jwtVerifyOpts: this.jwtVerifyOpts
+        });
+        Body.install(this.koa, this.bodyOptions);
         this.setup();
         // add routes
         this.koa.use(this.router.middleware());
@@ -94,38 +43,18 @@ class WebApp {
         // nothing to do by default
     }
 
-    setupStaticResources(router) {
-        const serveOpts = this.opts.serve;
-        router.serve(serveOpts.root, serveOpts);
-    }
-
     /**
-     * Setup main routes including login / logout endpoints.
-     * To be redefined by subclasses if needed
+     * Setup main routes
      * @param {*} router
-     * @param {*} auth
      */
-    setupRoutes(router, auth) {
-        const prefix = this.opts.auth.prefix || '/auth';
-        const authRouter = router.mount(prefix);
-        authRouter.post('/login', auth.koa.loginMiddleware());
-        authRouter.post('/logout', auth.koa.logoutMiddleware());
-        authRouter.post('/token', auth.koa.tokenMiddleware());
-        authRouter.post('/refresh', auth.koa.refreshMiddleware());
+    setupRoutes(router) {
+        // nothing to do by default
     }
-
 
     setupApiFilters(apiRouter, auth) {
         apiRouter.use(auth.koa.authMiddleware());
     }
 
-    setupApiRoutes(router) {
-        if (this.apiRoot) {
-            const apiRouter = router.mount(this.apiPrefix);
-            this.setupApiFilters(apiRouter, this.auth);
-            apiRouter.use('/', this.apiRoot);
-        }
-    }
 
     /**
      * use this to setup koa and your routes
@@ -138,11 +67,28 @@ class WebApp {
         // global filters that are always called
         this.setupFilters(router);
         // serve static resources
-        this.setupStaticResources(router);
+        if (this.serveRoot) {
+            router.serve(this.serveRoot, {
+                prefix: this.servePrefix,
+                exclude: this.serveExclude
+            });
+        }
         // auth endpoints
-        this.setupRoutes(router, auth);
+        if (this.authPrefix) {
+            const authRouter = router.mount(this.authPrefix);
+            authRouter.post('/login', auth.koa.loginMiddleware());
+            authRouter.post('/logout', auth.koa.logoutMiddleware());
+            authRouter.post('/token', auth.koa.tokenMiddleware());
+            authRouter.post('/refresh', auth.koa.refreshMiddleware());
+        }
         // api router
-        this.setupApiRoutes(router);
+        if (this.apiRoot) {
+            const apiRouter = router.mount(this.apiPrefix);
+            this.setupApiFilters(apiRouter, this.auth);
+            apiRouter.use('/', this.apiRoot);
+        }
+        // other user defined routes
+        this.setupRoutes(router);
     }
 
     callback() {
@@ -157,6 +103,56 @@ class WebApp {
             console.log(`App listening on port ${port}\nPress Ctrl+C to quit.`);
         })
     }
+
+    // ------ default configuration
+
+    get prefix() {
+        return '/';
+    }
+    get secret() {
+        return [ crypto.randomBytes(48).toString('hex') ];
+    }
+    get notFoundMessage() {
+        return 'Resource not found';
+    }
+    get apiRoot() {
+        return null;
+    }
+    get apiPrefix() {
+        return '/api/v1';
+    }
+    get authPrefix() {
+        return '/auth';
+    }
+    get servePrefix() {
+        return '/';
+    }
+    get serveExclude() {
+        return ['/api/*', '/auth/*'];
+    }
+    get serveRoot() {
+        return 'web';
+    }
+    get requestTokenHeader() {
+        return 'x-koa-webapp-request-token';
+    }
+    get allowAnonymous() {
+        return false;
+    }
+    get authCookie() {
+        // use defaults
+    }
+    get jwtSignOpts() {
+    }
+    get jwtVerifyOpts() {
+    }
+    get proxy() {
+    }
+    get bodyOptions() {
+    }
+    get errorHandlerOptions() {
+    }
+
 }
 
 WebApp.Resource = Resource;

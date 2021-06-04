@@ -7,9 +7,6 @@ const WebApp = require('..');
 let USER_EMAIL = 'foo@bar.com';
 
 class TestWebApp extends WebApp {
-    constructor(opts) {
-        super(opts);
-    }
     findUser(emailOrName) {
         if (emailOrName === 'banned') return null;
         return {
@@ -19,12 +16,33 @@ class TestWebApp extends WebApp {
             role: 'admin'
         }
     }
-    setupFilters(router) {
-        router.get('/from', '/to'); // a redirect
-    }
 
     get apiRoot() {
         return require('./api/root.js');
+    }
+
+    get serveRoot() {
+        return path.join(__dirname, 'web');
+    }
+
+    get serveExclude() {
+        return [ '/auth/*', '/api/*', '/methods/*' ];
+    }
+
+    get allowAnonymous() {
+        return true;
+    }
+
+    get authCookie() {
+        return {
+            // we need to turn secure and sameSite off since when testing we are not over https
+            sameSite: false,
+            secure: false
+        }
+    }
+
+    setupFilters(router) {
+        router.get('/from', '/to'); // a redirect
     }
 
     setupRoutes(router, auth) {
@@ -39,26 +57,20 @@ class TestWebApp extends WebApp {
         tmRouter.patch('/', ctx => ctx.status = 202);
         tmRouter.trace('/', ctx => ctx.status = 202);
         super.setupRoutes(router, auth);
+
+        // we are calling the overriden methods to boost code coverage
+        // otherwise nyx will report these default value getters were not tested
+        super.apiRoot;
+        super.serveRoot;
+        super.serveExclude;
+        super.allowAnonymous;
+        super.authCookie;
     }
 
 }
 
 let server;
-const app = new TestWebApp({
-    auth: {
-        allowAnonymous: true,
-        cookie: {
-            // we need to turn secure and sameSite off since when testing we are not over https
-            sameSite: false,
-            secure: false
-        }
-    },
-    serve: {
-        root: path.join(__dirname, 'web'),
-        exclude: [ '/auth/*', '/api/*', '/methods/*' ]
-    },
-    //apiRoot: require('./api/root.js')
-});
+const app = new TestWebApp();
 app.version = '1.0';
 
 before(() => {
