@@ -178,7 +178,7 @@ In `/auth` there are the folloing endpoints:
 * `/auth/token` - return the current token if any was set by a login in the auth cookie. This endpoint must be called using a custom header `x-koa-webapp-request-token: true` to avoid CSRF attacks on browsers not supporting sameSite cookie attributes. Accepts `POST`.
 * `/auth/refresh` - same as `/auth/token` but force a token refresh (i.e. the user data will be fetched from the database to update the JWT content). This is usefull when the user role or groups are changed on the server - this way you can refetch an updated token using the latest user information. You can also make a refresh by POSTing to `/auth/token` and using `x-koa-webapp-request-token: refresh`. Accepts `POST`.
 
-### The Resource class
+## The Resource class
 
 The router supports to types of bindings:
 
@@ -301,7 +301,7 @@ Resource patterns cannot end with `*`, `+` or `?`, since they are already using 
 
 You can look in tests to see more examples of resources.
 
-### Accessing the authenticated Principal ina request
+## Accessing the authenticated Principal in a request
 
 To implement security check you need to access the authenticated user. An authenticated user is stored in `ctx.state.principal` in the form of a `Principal` object. The principal hold some limited information about the user it refer to like for examples the user role and groups that are usefull when making security checks.
 
@@ -327,7 +327,7 @@ class ProtectedWorkspace extends WebApp.Resource {
 
 There is another type of virtual principal - the admin principal which has any permission. This principal can only be set to ctx.state.principal explicitly from the code.
 
-### Consuming the request body
+## Consuming the request body
 
 To consume the request body (if any) you should read the ctx.request.body property (thanks to the body middleware). This property is promise so you usually need to use the `await` keyword:
 
@@ -359,10 +359,33 @@ You can specify a custom message and an additional 'detail' field for more detai
 ctx.throw(500, 'Server Error', {detail: 'bla bla'});
 ```
 
-## Router
+You can also, customize the HTML error pages just return the following configuration from the `WebApp.errorHandlerOptions`:
 
-## Authentication
+```javascript
+class MyApp extends WebApp {
+    get errorHandlerOptions() {
+        return {
+            html: 'error_directory'
+        }
+    }
+}
+```
 
-## Request Body
+where `error_directory` is a path to a directory containing HTML error files named using the HTTP status code. Example: `404.html`, `500.html` etc.
+If the HTML file is not found for a given status code then the default HTML is used.
 
-## Error Handling
+Ypu can also specify a function for the `html` property, in which case it will be invoked with the error to return some HTML content.
+
+## The authentication flow
+
+Let's look in the default authentication model proposed by WebApp.
+
+1. The client POST a `username` and a `password` parameters to `/auth/login`. The login endpoint accepts either a JSON, a urlencoded form or a multipart form. (the username should be any type of user identifier like an email or username)
+2. The server lookup the User account using `WebApp.findUser(username)`. If no account is found 401 is returned.
+3. If the user is found its password is checked against the posted password. If the password doesn't match 401 is returned
+4. If the password match, a `Principal` object is created from the user data, a JWT token is generated and signed and a sameSite secure cookie is created to store the JWT.
+5. The endpoint retunrs a JSON object: `{ principal, token }`
+6. The client either use the received token, either redirects to the application main page which must make a POST request to the `/auth/token` endpoint to obtain the JWT generated earlier. This endpoint is protected against CSRF attacks by using a sameSite strict cookie and an additional custom header (for browsers that doesn't support the sameSite cookie attribute).
+7. The next time the user enters the application page, the application will ask for the JWT topken to the `/auth/token` endpoint. If the cookie token still exists then it will send back the token otheriwse it return a 401 and the client redirect the user to the login page.
+
+You can modify as you want the flow (by overwriting the `WebApp.setup()` method). Or you may integrate other logins such OAuth2 logins by copying the logic from the `/auth/login` endpoint (see loginMiddleware in auth/koa.js)
