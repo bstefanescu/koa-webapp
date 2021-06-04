@@ -10,7 +10,7 @@ class Root extends WebApp.Resource {
         }
     }
 
-    routes(router) {
+    setup(router) {
         router.use('/users', Users);
         router.get('/testPrincipalStack', this.testPrincipalStack)
     }

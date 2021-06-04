@@ -14,7 +14,7 @@ class User extends WebApp.Resource {
         ctx.body = {token: 'bla', 'uid': ctx.params.userId}
     }
 
-    routes(router) {
+    setup(router) {
         router.methods(['trace']);
         router.get('/token', this.getToken)
         // test other methods

@@ -126,9 +126,9 @@ class Resource {
         this.app = app;
         this._pattern = pattern;
         this._routes = null;
-        if (this.routes) {
+        if (this.setup) {
             const router = new RoutesBuilder(this);
-            this.routes(router);
+            this.setup(router);
             if (router.routes.length > 0) {
                 const lastc = pattern[pattern.length-1];
                 if (lastc === '*' || lastc === '+' || lastc === '?') {

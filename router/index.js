@@ -72,7 +72,7 @@ class Router {
     }
 
     middleware() {
-        // add a 404 catch all route at the end
+        // add a 404 catch to all routes at the end
         this._chain.push((ctx, next) => {
             ctx.throw(404, this.notFoundMessage);
         });

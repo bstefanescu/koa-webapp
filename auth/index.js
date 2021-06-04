@@ -35,8 +35,8 @@ class AuthService {
      *   jwtSignOpts: { ... jsonwebtoken sign opts ... },
      *   jwtVerifyOpts: { ... jsonwebtoken verify opts ... },
      *   cookie: false | true | string | {
-     *       name: 'koa.session',
-     *       options: { ... cookies.set options ... }
+     *       name: 'koa-webapp-auth',
+     *       ... cookies.set options ...
      *   }
      *}
      * @param {object} opts

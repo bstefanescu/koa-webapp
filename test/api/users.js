@@ -13,7 +13,7 @@ class Users extends WebApp.Resource {
         }
     }
 
-    routes(router) {
+    setup(router) {
         router.post('/postJSON', this.postJSON);
         router.post('/postXML', this.postXML);
         router.post('/postUrlencoded', this.postUrlencoded);
