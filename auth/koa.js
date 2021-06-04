@@ -1,7 +1,7 @@
 const Principal = require("./principal");
 
 function extractTokenFromHeader(ctx) {
-    if (!ctx.header && !ctx.header.authorization) {
+    if (ctx.header && ctx.header.authorization) {
         const parts = ctx.header.authorization.trim().split(' ');
 
         if (parts.length === 2) {
@@ -119,7 +119,7 @@ class KoaAuthentication {
      * Get the JWT token if there is a cookie containing a jwt token (the cookie name is controlled by the cookie.name option)
      * @param {*} ctx
      */
-    token(ctx) {
+    token(ctx, refresh) {
         if (ctx.method !== 'POST') {
             ctx.throw(405);
         }
@@ -128,24 +128,29 @@ class KoaAuthentication {
             ctx.throw(403);
         }
         if (reqToken === 'refresh') {
-            ctx.state._webappRefreshToken; // force a refresh
+            refresh = true; // force a refresh
         }
-        if (ctx.method === 'POST' && ctx.request.header[this.auth.opts.requestTokenHeader] === 'true') {
+
+
+        if (ctx.method === 'POST') {
             try {
                 const name = this.auth.cookie && this.auth.cookie.name;
                 if (name) {
                     let token = ctx.cookies.get(name);
                     if (token) {
-                        const principal = this.auth.jwtLogin(token);
-                        if (ctx.state._webappRefreshToken) {
+                        let principal = this.auth.jwtLogin(token);
+                        if (refresh) {
                             // recreate a principal from the user store
                             principal = this.auth.refreshLogin(principal);
                         } // else reuse the same principal
                         token = this.auth.signJWT(principal.toJWT());
                         // reset the cookie expiry time
+
                         ctx.cookies.set(name, token, this.auth.cookie);
-                        ctx.body = token;
-                        ctx.response.type = 'text/plain';
+                        ctx.body = {
+                            principal: principal,
+                            token: token
+                        };
                         return;
                     }
                 }
@@ -164,13 +169,14 @@ class KoaAuthentication {
      */
     refreshMiddleware() {
         return ctx => {
-            ctx.state._webappRefreshToken = true;
-            return this.token(ctx);
+            return this.token(ctx, true);
         }
     }
 
     tokenMiddleware() {
-        return this.token.bind(this);
+        return ctx => {
+            return this.token(ctx, false);
+        }
     }
 
     /**
@@ -244,13 +250,14 @@ class KoaAuthentication {
             ctx.response.status = 204;
         }
     }
-
+/*
     oauthMiddleware() {
         return (ctx, next) => {
             //TODO
             return next();
         }
     }
+*/
 }
 
 

@@ -10,6 +10,14 @@ class Principal {
         return this.userType !== Principal.USER;
     }
 
+    get isAdmin() {
+        return this.userType === Principal.ADMIN;
+    }
+
+    get isAnonymous() {
+        return this.userType === Principal.ANONYMOUS;
+    }
+
     fromUser(userData) {
         this.uid = userData.id;
         this.email = userData.email;

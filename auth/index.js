@@ -64,9 +64,9 @@ class AuthService {
         }
         this.allowAnonymous = opts.allowAnonymous || false;
         // anonymous virtual principal
-        this.anonymous = Object.freeze(this.createPrincipal('@anonymous'));
+        this.anonymous = Object.freeze(this.createPrincipal('#anonymous'));
         // admin virtual principal
-        this.admin = Object.freeze(this.createPrincipal('@admin'));
+        this.admin = Object.freeze(this.createPrincipal('#admin'));
         // jwt options:
         this.jwtSignOpts = Object.assign({
             expiresIn: "3h",
@@ -113,12 +113,12 @@ class AuthService {
         if (userData) {
             principal = new Principal(name).fromUser(userData);
         } else {
-            if (name === '@anonymous') {
+            if (name === '#anonymous') {
                 principal = new Principal(name, Principal.ANONYMOUS);
-            } else if (name === '@admin') {
+            } else if (name === '#admin') {
                 principal = new Principal(name, Principal.ADMIN);
             } else {
-                throw new Error('Invalid vritual principal name: '+name+'. Only "@anonymous" and "@admin" are accepted');
+                throw new Error('Invalid vritual principal name: '+name+'. Only "#anonymous" and "#admin" are accepted');
             }
         }
         return principal;

@@ -6,7 +6,6 @@ const Router = require('./router');
 const errorHandler = require('./error')
 const Resource = require('./router/resource');
 const Body = require('./body');
-const PORT = process.env.PORT || 8080;
 
 function createOptions(opts) {
     opts = Object.assign({
@@ -66,6 +65,7 @@ class WebApp {
             this.opts.auth.findUser = this.findUser.bind(this);
         }
         this.koa = new Koa(this.opts);
+        this.koa.webapp = this;
         this.koa.proxy = !!this.opts.proxy;
         this.router = new Router(this.opts.prefix || '/');
         this.router.app = this;
@@ -150,18 +150,11 @@ class WebApp {
     }
 
     listen(port, cb) {
-        if(!port) {
-            port = PORT;
-        } else if(typeof port === 'function') {
-            cb = port;
-            port = PORT;
-        }
         return this.koa.listen(port, () => {
             if (cb) {
                 if (cb(this) === false) return; // quiet mode
             }
-            console.log(`App listening on port ${port}`);
-            console.log('Press Ctrl+C to quit.');
+            console.log(`App listening on port ${port}\nPress Ctrl+C to quit.`);
         })
     }
 }

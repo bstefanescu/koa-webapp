@@ -4,6 +4,8 @@ const path = require('path');
 const request = require('supertest');
 const WebApp = require('..');
 
+let USER_EMAIL = 'foo@bar.com';
+
 class TestWebApp extends WebApp {
     constructor(opts) {
         super(opts);
@@ -12,7 +14,7 @@ class TestWebApp extends WebApp {
         if (emailOrName === 'banned') return null;
         return {
             name: emailOrName,
-            email: emailOrName,
+            email: USER_EMAIL,
             nickname: emailOrName,
             role: 'admin'
         }
@@ -201,6 +203,25 @@ describe('Test HTTP method functions on Resource router', () => {
 
 describe('Test Authentication', () => {
 
+    beforeEach(() => {
+        // turn off anonymous access
+        app.auth.allowAnonymous = false;
+    });
+
+    afterEach(() => {
+        // turn on anonymous access
+        app.auth.allowAnonymous = true;
+    });
+
+    it('Can access API root without JWT if anonymous access is allowed', done => {
+        app.auth.allowAnonymous = true;
+        request(server).get('/api/v1').expect(200, done);
+    });
+
+    it('Cannot access API root without JWT', done => {
+        request(server).get('/api/v1').expect(401, done);
+    });
+
     it('POST /auth/token => 403 without x-koa-webapp-request-token header', done => {
         request(server).post('/auth/token').expect(403, done);
     });
@@ -234,7 +255,7 @@ describe('Test Authentication', () => {
         }).catch(err => done(err));
     });
 
-    let authCookie;
+    let authCookie, authToken, principal;
     it('POST /auth/login => 200 with valid user info', done => {
         request(server).post('/auth/login')
         .set('Content-Type', 'application/json')
@@ -254,7 +275,64 @@ describe('Test Authentication', () => {
         .set('Cookie', authCookie)
         .set('x-koa-webapp-request-token', 'true')
         .set('Content-Type', 'application/json')
+        .expect(200).then(res => {
+            authToken = res.body.token;
+            principal = res.body.principal;
+            assert.strictEqual(principal.email, USER_EMAIL);
+            done();
+        }).catch(err=>done(err));
+    });
+
+    it('Can access API root with JWT', done => {
+        request(server)
+        .get('/api/v1')
+        .auth(authToken, { type: 'bearer' })
         .expect(200, done);
+    });
+
+    it('Can refresh token using /auth/refresh', done => {
+        // modify the user email
+        USER_EMAIL = 'john@doe.com';
+
+        request(server).post('/auth/refresh')
+        .set('Cookie', authCookie)
+        .set('x-koa-webapp-request-token', 'true')
+        .set('Content-Type', 'application/json')
+        .expect(200).then(res => {
+            authToken = res.body.token;
+            principal = res.body.principal;
+            assert.strictEqual(principal.email, USER_EMAIL);
+            done();
+        }).catch(err=>done(err));
+    });
+
+    it('Can refresh token using /auth/token and x-koa-webapp-request-token:refresh header', done => {
+        // modify the user email
+        USER_EMAIL = 'jane@doe.com';
+
+        request(server).post('/auth/token')
+        .set('Cookie', authCookie)
+        .set('x-koa-webapp-request-token', 'refresh')
+        .set('Content-Type', 'application/json')
+        .expect(200).then(res => {
+            authToken = res.body.token;
+            principal = res.body.principal;
+            assert.strictEqual(principal.email, USER_EMAIL);
+            done();
+        }).catch(err=>done(err));
+    });
+
+    it('ctx.state.principal is set', done => {
+        request(server)
+        .get('/api/v1/testPrincipalStack?email=jane@doe.com')
+        .auth(authToken, { type: 'bearer' })
+        .expect(202, done);
+    });
+
+    it('can logout', done => {
+        request(server)
+        .post('/auth/logout')
+        .expect(204, done);
     });
 
 });
