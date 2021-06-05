@@ -392,3 +392,23 @@ Let's look in the default authentication model proposed by WebApp.
 7. The next time the user enters the application page, the application will ask for the JWT topken to the `/auth/token` endpoint. If the cookie token still exists then it will send back the token otheriwse it return a 401 and the client redirect the user to the login page.
 
 You can modify as you want the flow (by overwriting the `WebApp.setup()` method). Or you may integrate other logins such OAuth2 logins by copying the logic from the `/auth/login` endpoint (see loginMiddleware in auth/koa.js)
+
+## Development configuration
+
+When developing you may not use https and thus the sameSite cookies will not work. Also, you may want to anonymously access to your application, so the following config may help you:
+
+```javascript
+const WebApp = require('koa-webapp');
+class MyApp extends WebApp {
+    get allowAnonymous() {
+        return true;
+    }
+
+    get authCookie() {
+        return {
+            sameSite: false,
+            secure: false
+        }
+    }
+}
+```
