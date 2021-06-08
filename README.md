@@ -3,9 +3,10 @@
 [![Build Status](https://travis-ci.com/bstefanescu/koa-webapp.svg?branch=main)](https://travis-ci.com/bstefanescu/koa-webapp)
 [![codecov](https://codecov.io/gh/bstefanescu/koa-webapp/branch/main/graph/badge.svg?token=X4GB9MUWP2)](https://codecov.io/gh/bstefanescu/koa-webapp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://img.shields.io/npm/v/koa-webapp)]
 
 
-An application model and a set of [koa](https://koajs.com/) middlewares which provides a minimal structure to build nodejs web applications. It is ready to use to serve a Single Application Page. For more complex applications you will need to add custom routes or authentication logic.
+An application model and a set of [koa](https://koajs.com/) middlewares which provides a minimal structure to build nodejs web applications. It is ready to be use and serve regular web applications using the default configuration. For more complex applications you will need to add custom routes or a different authentication logic.
 
 Features:
 
@@ -13,8 +14,8 @@ Features:
     A configurable class defining a web application. Embeds a koa app instance and provide configuration getters to configure the application. It is also the place where you should initialize and store the global (i.e. singleton) services making up your application.
 1. **Router**  \
     A koa router middleware providing:
-    * classic route definitions (similar to [koa-router]())
-    * support defining a web resources tree using javascript classes
+    * classic route definitions with sub-routers support (similar to [koa-router]())
+    * support defining a web resources tree by extending the WebApp.Resource class (inspired from JAX-RS Java standard).
 2. **Authentication**  \
     A set of koa middlewares providing:
     * Form based login (generates a JWT)
@@ -23,7 +24,7 @@ Features:
 3. **Request body**  \
     On demand body support to easily access the content send from the browser. (the body will not be read if a middleware is not accessing it)
 4. **Error Handling**  \
-    Better error handling then the default koa errors. Automatically convert errors to json or html depending on the browser accepted content types.
+    Better error handling than the default koa errors. Automatically convert errors to json or html depending on the browser accepted content types.
 
 You can use any of the provided middlewares directly in **koa** without using the WebApp class, which is a helper to easily configure an application.
 
