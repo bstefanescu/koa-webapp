@@ -71,7 +71,8 @@ class WebApp {
         if (this.serveRoot) {
             router.serve(this.serveRoot, {
                 prefix: this.servePrefix,
-                exclude: this.serveExclude
+                exclude: this.serveExclude,
+                filters: this.serveFilters
             });
         }
         // auth endpoints
@@ -130,6 +131,9 @@ class WebApp {
     }
     get serveExclude() {
         return ['/api/*', '/auth/*'];
+    }
+    get serveFilters() {
+        return null;
     }
     get serveRoot() {
         return 'web';

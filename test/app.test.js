@@ -17,6 +17,15 @@ class TestWebApp extends WebApp {
         }
     }
 
+    get serveFilters() {
+        return [
+            (ctx, next) => {
+                ctx.set('Serve-Custom-Header', 'test');
+                return next();
+            }
+        ];
+    }
+
     get apiRoot() {
         return require('./api/root.js');
     }
@@ -77,6 +86,7 @@ describe('Test static routes', () => {
     it('GET / => 200', done => {
         request(server).get('/').expect(200).then(res => {
             assert.strictEqual(res.text, '<html><body>index</body></html>')
+            assert.strictEqual(res.headers['serve-custom-header'], 'test')
             done();
         }).catch(err => done(err));
     });
@@ -108,6 +118,8 @@ describe('Test API routes', () => {
         .expect('Content-Type', /json/)
         .then(res => {
             assert.strictEqual(res.body.version, app.version)
+            // static serve headers not set
+            assert.ok(!res.headers['serve-custom-header']);
             done();
         }).catch(err => done(err));
     });
@@ -159,6 +171,7 @@ describe('Test API routes', () => {
             done();
         }).catch(err => done(err));
     });
+
 });
 
 describe('Test HTTP method functions on main router', () => {

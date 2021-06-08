@@ -3,6 +3,7 @@
 */
 const path = require('path');
 const send = require('koa-send');
+const compose = require('koa-compose');
 const { createSimpleMatcher } = require('./matchers.js');
 
 /**
@@ -54,25 +55,32 @@ function serve(root, opts = {}) {
         return true;
     }
 
-    const serveMiddleware = async (ctx, next) => {
-        if (match(ctx)) {
-            // we don't call next if the request matches -> either we find the resource either we return a 404
-            try {
-                await send(ctx,
-                    (rebaseOffset > 0 ? ctx.path.substring(rebaseOffset) : ctx.path) || '.',
-                    sendOpts);
-            } catch (e) {
-                //TODO use Boom
-                if (e.code === 'ENOENT') {
-                    ctx.throw(404, 'File not found: '+ctx.path);
-                } else {
-                    ctx.throw(500, 'Failed to fetch file: '+ctx.path);
-                }
+    let sendMiddleware = async (ctx, next) => {
+        // we don't call next if the request matches -> either we find the resource either we return a 404
+        try {
+            await send(ctx,
+                (rebaseOffset > 0 ? ctx.path.substring(rebaseOffset) : ctx.path) || '.',
+                sendOpts);
+        } catch (e) {
+            if (e.code === 'ENOENT') {
+                ctx.throw(404, 'File not found: '+ctx.path);
+            } else {
+                ctx.throw(500, 'Failed to fetch file: '+ctx.path);
             }
+        }
+    };
+
+    if (opts.filters && opts.filters.length > 0) {
+        sendMiddleware = compose(opts.filters.concat(sendMiddleware));
+    }
+
+    let serveMiddleware = (ctx, next) => {
+        if (match(ctx)) {
+            return sendMiddleware(ctx, next);
         } else {
             return next();
         }
-    };
+    }
 
     return serveMiddleware;
 }
