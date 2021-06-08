@@ -8,7 +8,8 @@ const Resource = require('./router/resource');
 const Body = require('./body');
 
 class WebApp {
-    constructor() {
+    constructor(opts) {
+        this.init && this.init(opts);
         this.koa = new Koa();
         this.koa.webapp = this;
         this.koa.proxy = !!this.proxy;

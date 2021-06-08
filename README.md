@@ -62,12 +62,13 @@ It is up to you how you use the provided information to check the user permissio
 ```javascript
 const WebApp = require('koa-webapp');
 class MyApp extends WebApp {
-    constructor() {
+    // you can pass an options object to the `init(opts)` method as the first argument on the constructor
+    constructor(opts) {
         super(opts);
     }
 
     // initialize services in the init method. It will be called before configuring the web app.
-    init() {
+    init(opts) {
         // the following code is only for demonstration
         // You can use any database you want to store user accounts
         this.userStore = new UserStore();
