@@ -63,15 +63,22 @@ It is up to you how you use the provided information to check the user permissio
 const WebApp = require('koa-webapp');
 class MyApp extends WebApp {
     // you can pass an options object to the `init(opts)` method as the first argument on the constructor
-    constructor(opts) {
-        super(opts);
+    constructor() {
+        super({
+            // custom options here
+        });
     }
 
     // initialize services in the init method. It will be called before configuring the web app.
-    init(opts) {
+    setup() {
+        // do any custom initialization here
+
         // the following code is only for demonstration
         // You can use any database you want to store user accounts
         this.userStore = new UserStore();
+
+        super.setup(); // then call the default setup
+        // post setup actions here
     }
 
     /**
@@ -118,7 +125,9 @@ The `WebApp` class provides two methods `callback()` and `listen()` that are sho
 * **router** - the main router mounted in '/'
 * **auth** - the authentication service instance.
 
-### Configuration Properties
+### Options
+
+You can configure the application by passing an options object to the WebApp super constructor. here is the list of all the options:
 
 * **proxy** - property passed to koa. See `koa.proxy`.
 * **prefix** - the prefix to be used to mount the main router. Defaults to '/'
@@ -130,7 +139,7 @@ The `WebApp` class provides two methods `callback()` and `listen()` that are sho
 * **apiPrefix** - the prefix to use for the root API resource. Defaults to `/api`.
 * **apiRoot** - the root API resource class. Defaults to `null`. If not specified no API resource router will be mounted in `/api`.
 * **authPrefix** - the prefix to be used for the authentication endpoints. Defaults to `/auth`
-* **secret** - a secret or array of secrets to be used . By default a single secret string is generated when appplication is instantiated. This means the secret will change after a server restart so all the issued JWTs will be invalid. You must define this getter if you want to use a mechanism to persist secrets.
+* **secret** - a secret or array of secrets to be used . By default a single secret string is generated when appplication is instantiated. This means the secret will change after a server restart so all the issued JWTs will be invalid. You must define this option if you want to use a mechanism to persist secrets.
 * **requestTokenHeader** - the header name that must be used to request a JWT token from the secure authorization cookie. Defaults to `x-koa-webapp-request-token`.
 * **allowAnonymous** - if `true` un-authenticated users will be able to access the protected resources (e.g. the API resources). Defaults to `false`. This can be usefull to let un-authenticated users to ccess the application in read only mode.
 * **authCookie** - can be a string or an object containing options for the authorization cookie passed to `koa.cookies`. If you only want to change the cookie name you can return a string with that name. If you return an object with cookie options you can also change the cookie name by including a name property in the returned object. The default value is:
@@ -402,15 +411,14 @@ When developing you may not use https and thus the sameSite cookies will not wor
 ```javascript
 const WebApp = require('koa-webapp');
 class MyApp extends WebApp {
-    get allowAnonymous() {
-        return true;
-    }
-
-    get authCookie() {
-        return {
-            sameSite: false,
-            secure: false
-        }
+    constructor() {
+        super({
+            allowAnonymous: true,
+            authCookie: {
+                sameSite: false,
+                secure: false
+            }
+        });
     }
 }
 ```
