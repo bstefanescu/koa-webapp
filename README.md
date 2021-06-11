@@ -11,7 +11,7 @@ An application model and a set of [koa](https://koajs.com/) middlewares which pr
 Features:
 
 1. **WebApp**  \
-    A configurable class defining a web application. Embeds a koa app instance and provide configuration getters to configure the application. It is also the place where you should initialize and store the global (i.e. singleton) services making up your application.
+    A configurable class defining a web application which embeds a koa app instance. It is also the place where you should initialize and store the global (i.e. singleton) services making up your application.
 1. **Router**  \
     A koa router middleware providing:
     * classic route definitions with sub-routers support (similar to [koa-router]())
@@ -36,11 +36,11 @@ npm install koa-webapp
 
 ## WebApp
 
-A configurable class defining a web application. Embeds a koa app instance and provide configuration getters to configure the application. It is also the place where you should initialize and store the global (i.e. singleton) services making up your application.
+A configurable class defining a web application which embeds a koa app instance. It is also the place where you should initialize and store the global (i.e. singleton) services making up your application.
 
 The web app instance will be available to all `Resource` objects through the `app` property, so you can easily access the global services. Also, the web app instance will be aavilable on the koa instance as the `webapp` property so you can access the web app from any middleware.
 
-To configure the application you will need to extend the base WebApp class and to define some methods and / or getters. There is only one method that you **must define**: `findUser(emailOrName)` which is used to retrieve an user account given its name or email. If no user is found you must return a falsy value (e.g. null). This method will be used to login users.
+To configure the application you will need to pass your custom options through the argument of the base class constructor. The only abstract method that you **must define** is: `findUser(emailOrName)` which is used to retrieve an user account given its name or email. If no user is found you must return a falsy value (e.g. null). This method will be used to login users.
 The returned User object may define the following fields:
 
 ```
@@ -62,14 +62,15 @@ It is up to you how you use the provided information to check the user permissio
 ```javascript
 const WebApp = require('koa-webapp');
 class MyApp extends WebApp {
-    // you can pass an options object to the `init(opts)` method as the first argument on the constructor
     constructor() {
         super({
-            // custom options here
+            // pass custom options here
+            allowAnonymous: true,
+            secret: 'my secret',
+            apiRoot: MyRoot
         });
     }
 
-    // initialize services in the init method. It will be called before configuring the web app.
     setup() {
         // do any custom initialization here
 
@@ -89,27 +90,6 @@ class MyApp extends WebApp {
     findUser(nameOrEmail) {
         return this.userStore.find(nameOrEmail);
     }
-
-    // Modify the default confioguration by overwriting the corresponding getters
-
-    get allowAnonymous() {
-        return true;
-    }
-
-    /**
-     * Get one or more secrets to be used to sign JWT tokens.
-     * The defaukt is to generate a new secret each time you create an application.
-     * This is acceptable for tests but you may want to persists the secrets, to avoid invalidating existing tokens if the web server is restarted.
-     * @return a secret or an array of secrets
-     */
-    get secret() {
-        return 'my secret'; // you can also return an array of secrets.
-    }
-
-    get apiRoot() {
-        return MyRoot; // returns a class object which extends WebApp.Resource
-    }
-
 }
 
 const app = new MyApp();
