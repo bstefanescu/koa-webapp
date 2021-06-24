@@ -240,6 +240,8 @@ class KoaAuthentication {
                     this.logout(ctx);
                     ctx.throw(401);
                 }
+            } else {
+                ctx.throw(405);
             }
         }
     }

@@ -70,7 +70,7 @@ class WebApp {
 
     /**
      * Setup global filterd that are always called
-     * @param {*} router
+     * @param {Router} router
      * @protected
      */
     setupFilters(router) {
@@ -79,7 +79,7 @@ class WebApp {
 
     /**
      * Setup main routes
-     * @param {*} router
+     * @param {Router} router
      * @protected
      */
     setupRoutes(router) {
@@ -88,19 +88,30 @@ class WebApp {
 
     /**
      *
-     * @param {*} apiRouter
-     * @param {*} auth
+     * @param {Router} apiRouter
+     * @param {AuthService} auth
      * @protected
      */
     setupApiFilters(apiRouter, auth) {
         apiRouter.use(auth.koa.authMiddleware());
     }
 
+    /**
+     *
+     * @param {Router} authRouter
+     * @param {AuthService} auth
+     */
+    setupAuth(authRouter, auth) {
+        authRouter.post('/login', auth.koa.loginMiddleware());
+        authRouter.post('/logout', auth.koa.logoutMiddleware());
+        authRouter.post('/token', auth.koa.tokenMiddleware());
+        authRouter.post('/refresh', auth.koa.refreshMiddleware());
+    }
 
     /**
      * use this to setup koa and your routes
-     * @param {*} router
-     * @param {*} auth
+     * @param {Router} router
+     * @param {AuthService} auth
      * @protected
      */
     setup() {
@@ -119,10 +130,7 @@ class WebApp {
         // auth endpoints
         if (this.opts.authPrefix) {
             const authRouter = router.mount(this.opts.authPrefix);
-            authRouter.post('/login', auth.koa.loginMiddleware());
-            authRouter.post('/logout', auth.koa.logoutMiddleware());
-            authRouter.post('/token', auth.koa.tokenMiddleware());
-            authRouter.post('/refresh', auth.koa.refreshMiddleware());
+            this.setupAuth(authRouter, auth);
         }
         // api router
         if (this.opts.apiRoot) {

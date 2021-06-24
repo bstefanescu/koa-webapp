@@ -111,7 +111,7 @@ You can configure the application by passing an options object to the WebApp sup
 
 * **proxy** - property passed to koa. See `koa.proxy`.
 * **prefix** - the prefix to be used to mount the main router. Defaults to '/'
-* **secret** - a string or array of string to be used as the secret(s) when signing and verifying JWTs.
+* **secret** - a string or array of string to be used as the secret(s) when signing and verifying JWTs. The secret will also be used to initialize the koa `keys` property.
 * **notFoundMessage** - message to be used for the 404 error when no matching resource is found by the router. Defaults to `"Resource not found"`
 * **serveRoot** - the root directory to use to serve static files. Defaults to `${process.cwd()/web`
 * **servePrefix** - the prefix to remove when mapping URL paths to files inside `serveRoot`. Defaults to `/`
@@ -146,6 +146,7 @@ You can configure the application by passing an options object to the WebApp sup
 * **callback()** - shortcut to koa callback method
 * **setup()** - setup the application routes. You can overwrite it to add custom routes or completely redefine the application layout.
 * **setupFilters(router)** - Setup middlewares invoked at the begining before doing any resource matching. By default it does nothing.
+* **setupAuth(authRouter, auth)** - setup auth endpoints (it will override default endpoints so you need to call super.setupAuth() to have the default endpoints created).
 * **setupApiFilters(apiRouter, auth)** - setup additional middlewares to be called before matching API resources. By default it adds a middleware that protect the access to the api router resources by checking the `Authorization` header for a JWT bearer token.
 * **setupRoutes(router)** - add additional routes to the main router. By default it does nothing.
 
@@ -377,12 +378,33 @@ Let's look in the default authentication model proposed by WebApp.
 1. The client POST a `username` and a `password` parameters to `/auth/login`. The login endpoint accepts either a JSON, a urlencoded form or a multipart form. (the username should be any type of user identifier like an email or username)
 2. The server lookup the User account using `WebApp.findUser(username)`. If no account is found 401 is returned.
 3. If the user is found its password is checked against the posted password. If the password doesn't match 401 is returned
-4. If the password match, a `Principal` object is created from the user data, a JWT token is generated and signed and a sameSite secure cookie is created to store the JWT.
+4. If the password match, a `Principal` object is created from the user data, a JWT token is generated from the principal object and signed using the configured secret and a sameSite secure cookie storing the JWT is created (valid only the `/auth/token` path).
 5. The endpoint retunrs a JSON object: `{ principal, token }`
 6. The client either use the received token, either redirects to the application main page which must make a POST request to the `/auth/token` endpoint to obtain the JWT generated earlier. This endpoint is protected against CSRF attacks by using a sameSite strict cookie and an additional custom header (for browsers that doesn't support the sameSite cookie attribute).
 7. The next time the user enters the application page, the application will ask for the JWT topken to the `/auth/token` endpoint. If the cookie token still exists then it will send back the token otheriwse it return a 401 and the client redirect the user to the login page.
 
-You can modify as you want the flow (by overwriting the `WebApp.setup()` method). Or you may integrate other logins such OAuth2 logins by copying the logic from the `/auth/login` endpoint (see loginMiddleware in auth/koa.js)
+You can modify as you want the flow (by overwriting the `WebApp.setup()` or `WebApp.setupAuth()` methods). Or you may integrate other logins such OAuth2 by copying the logic from the `/auth/login` endpoint (see loginMiddleware in auth/koa.js)
+
+If the application parts are on the same domain (for example the home page on `https://mydomain.com` the login page on `https://mydomain.com/login` and the single application page on `https://mydomain.com/app`)the flow will work without any additional configureation, but if you want to use a different sub-domain for the single application pgae you need to set the cookie domain attribute to the top level domnain.
+
+**Example:**
+
+* the home page is located on `https://mydomain.com`
+* the login page is located on `https://mydomain.com/login`
+* the single application page is located on `https://app.mydomain.com`
+
+You need in this case to use `mydomain.com` as the auth cookie domain. And to expose the `/auth/` endpoints on both `mydomain.com` and `app.mydomain.com` to be able to retrieve the current JWT if the user session exists.
+
+Thus, when the home page is loaded:
+1. get the current JWT from `https://mydomain.com/auth/token`.
+2. If a valid JWT is returned (the session exists) propose a link to go to the application.
+3. Otherwise propose a login link that will redirect the user to the `/login.html` page (or show a login modal dialog)
+4. The login will put the JWT in the sameSite, httpOnly, secure cookie and will redirect the user o the `app.mydomain.com`
+5. When entering the `app.mydomain.com` you fetch the JWT from `https://app.mydomain.com/auth/token`.
+6. If the JWT exists you load the application
+7. Otherwise you redirect back to the home page.
+
+**Note** that the  same flow is valid when using all the endpoints on the same domain: instead of `app.mydomain.com` you use `mydomain.com/app`)
 
 ## Development configuration
 
