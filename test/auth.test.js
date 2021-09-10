@@ -1,21 +1,27 @@
 const assert = require('assert');
 const AuthService = require('../auth');
-const Principal = require('../auth/principal');
+const MyPrincipal = require('./my-principal.js');
+const {hash, verifyPassword} = require('./password.js');
+
 
 const USERS = {}
 const auth = new AuthService({
     secret: 'the secret',
+    principal: MyPrincipal,
     findUser(name) {
         return USERS[name];
-    }
+    },
+    verifyPassword: verifyPassword
 });
 
+
 USERS.john = {
+    id: 'user-123',
     name: 'john',
     email: 'john@doe.com',
     nickname: 'joe',
     role: 'admin',
-    password: auth.hash('mysecret')
+    password: hash('mysecret')
 }
 
 
@@ -45,9 +51,10 @@ describe('AuthService unit tests', () => {
     });
 
     it("user to principal to jwt works", () => {
-        let principal1 = new Principal();
-        let jwt = principal1.fromUser(USERS.john).toJWT();
-        let principal2 = new Principal();
+        let principal1 = new MyPrincipal('foo');
+        let jwt = {sub:principal1.name};
+        principal1.fromUser(USERS.john).writeJWT(jwt);
+        let principal2 = new MyPrincipal('foo');
         principal2.fromJWT(jwt);
         assert.deepStrictEqual(principal1, principal2);
     })

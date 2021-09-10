@@ -1,59 +1,81 @@
-
+/**
+ * The Base class of a principal. An application will usually want to extends this one
+ * to control which user properties are stored on the principal and
+ * how they are mapped on the JWT corresponding to the principal.
+ *
+ * This implementation will assume the User object contains an 'id', 'nickname' and
+ * a 'role' property and will import these as properties on the principal.
+ * When writing down the JWT corresponding to the principal the 'id' is mapped as the 'user' claim and the
+ * nickname and role are preserved as is. The oposite is done when initializing the principal from a JWT token.
+ *
+ * The name is always mapped as the JWT sub claim.
+ *
+ * Minimal set of properties of a principal:
+ * 1. `name`
+ * 2. `isAnonymous`
+ * 3. `isSuperuser`
+ * 4. `isVirtual`
+ *
+ * Methods that should be implemented if extended:
+ * `fromUser(userData)`
+ * `fromJWT(token)`
+ * `writeJWT(token)`
+ */
 class Principal {
 
-    constructor(name, type) {
+    constructor(name) {
+        if (!name) throw new Error('Expecting a name for the Principal');
         this.name = name;
-        this.userType = type || Principal.USER;
     }
 
     get isVirtual() {
-        return this.userType !== Principal.USER;
+        return false;
     }
 
-    get isAdmin() {
-        return this.userType === Principal.ADMIN;
+    get isSuperuser() {
+        return false;
     }
 
     get isAnonymous() {
-        return this.userType === Principal.ANONYMOUS;
+        return false;
     }
 
+    /**
+     * Initialize the principal from the given user
+     * @param {*} userData
+     * @returns
+     */
     fromUser(userData) {
-        this.uid = userData.id;
-        this.email = userData.email;
-        this.nickname = userData.nickname || this.name;
+        this.id = userData.id;
+        this.nickname = userData.nickname;
         this.role = userData.role;
-        this.groups = userData.groups;
         return this;
     }
 
+    /**
+     * Initialize the principal from the given JWT
+     * @param {*} token
+     * @returns
+     */
     fromJWT(token) {
-        this.name = token.sub;
-        this.userType = token.userType;
-        this.uid = token.userId;
-        this.email = token.email;
-        this.nickname = token.nickname || this.name;
+        this.id = token.user;
+        this.nickname = token.nickname;
         this.role = token.role;
-        this.groups = token.groups;
         return this;
     }
 
-    toJWT() {
-        return {
-            sub: this.name,
-            userType: this.userType,
-            uid: this.userId,
-            email: this.email,
-            nickname: this.nickname || this.name,
-            role: this.role,
-            groups: this.groups
-        }
+    /**
+     * Write the JWT fields for this principal
+     * @param {*} token
+     * @returns
+     */
+    writeJWT(token) {
+        token.user = this.id;
+        token.nickname = this.nickname;
+        token.role = this.role;
+        return this;
     }
 
 }
-
-Principal.ANONYMOUS = 1; // anonymous virt user
-Principal.USER = 0; // regular user (backed by an user object)
-Principal.ADMIN = 1; // amdin virt user
 
 module.exports = Principal;

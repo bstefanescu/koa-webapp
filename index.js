@@ -21,7 +21,9 @@ class WebApp {
         this.koa = koa;
         this.router = router;
         this.auth = new AuthService({
-            findUser: this.findUser.bind(this),
+            findUser: this.findUser ? this.findUser.bind(this) : opts.findUser,
+            verifyPassword: this.verifyPassword ? this.verifyPassword.bind(this) : opts.verifyPassword,
+            principal: opts.principal,
             secret: opts.secret,
             allowAnonymous: opts.allowAnonymous,
             requestTokenHeader: opts.requestTokenHeader,

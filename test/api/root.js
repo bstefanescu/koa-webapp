@@ -1,6 +1,8 @@
 const assert = require('assert');
 const WebApp = require('../..');
 const Users = require('./users');
+const Superuser = require('../../auth/superuser.js');
+const Anonymous = require('../../auth/anonymous.js');
 
 class Root extends WebApp.Resource {
 
@@ -21,13 +23,13 @@ class Root extends WebApp.Resource {
         assert.ok(!principal.isVirtual);
 
         // push the admin principal on the stack
-        this.app.auth.koa.pushPrincipal(ctx, this.app.auth.admin);
+        this.app.auth.koa.pushPrincipal(ctx, Superuser);
         principal = ctx.state.principal;
-        assert.strictEqual(principal.name, '#admin');
+        assert.strictEqual(principal.name, '#superuser');
         assert.ok(principal.isVirtual);
-        assert.ok(principal.isAdmin);
+        assert.ok(principal.isSuperuser);
 
-        this.app.auth.koa.pushPrincipal(ctx, this.app.auth.anonymous);
+        this.app.auth.koa.pushPrincipal(ctx, Anonymous);
         principal = ctx.state.principal;
         assert.strictEqual(principal.name, '#anonymous');
         assert.ok(principal.isVirtual);
@@ -35,9 +37,9 @@ class Root extends WebApp.Resource {
 
         this.app.auth.koa.popPrincipal(ctx);
         principal = ctx.state.principal;
-        assert.strictEqual(principal.name, '#admin');
+        assert.strictEqual(principal.name, '#superuser');
         assert.ok(principal.isVirtual);
-        assert.ok(principal.isAdmin);
+        assert.ok(principal.isSuperuser);
 
         this.app.auth.koa.popPrincipal(ctx);
         principal = ctx.state.principal;

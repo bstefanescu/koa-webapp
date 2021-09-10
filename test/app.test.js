@@ -1,10 +1,38 @@
-
+const {verifyPassword, hash} = require('./password.js');
+const MyPrincipal = require('./my-principal.js');
 const assert = require('assert');
 const path = require('path');
 const request = require('supertest');
 const WebApp = require('..');
 
 let USER_EMAIL = 'foo@bar.com';
+
+const USERS = {
+    Foo: {
+        id: 'foo-123',
+        name: 'Foo',
+        email: 'foo@bar.com',
+        nickname: 'Foo',
+        role: 'admin',
+        password: hash('Bar')
+    },
+    banned: {
+        id: 'banned-xxx',
+        name: 'banned',
+        email: 'foo@bar.com',
+        nickname: 'Banned',
+        role: 'admin',
+        password: hash('banned')
+    },
+    John: {
+        id: 'foo-123',
+        name: 'John',
+        email: 'john@bar.com',
+        nickname: 'John',
+        role: 'admin',
+        password: hash('test')
+    },
+}
 
 class TestWebApp extends WebApp {
 
@@ -25,18 +53,21 @@ class TestWebApp extends WebApp {
                 sameSite: false,
                 secure: false
             },
-
+            principal: MyPrincipal,
+            verifyPassword: verifyPassword
         });
     }
 
     findUser(emailOrName) {
         if (emailOrName === 'banned') return null;
-        return {
-            name: emailOrName,
-            email: USER_EMAIL,
-            nickname: emailOrName,
-            role: 'admin'
-        }
+        return USERS[emailOrName];
+        // return {
+        //     id: 'foo-123',
+        //     name: emailOrName,
+        //     email: USER_EMAIL,
+        //     nickname: emailOrName,
+        //     role: 'admin'
+        // }
     }
 
     setupFilters(router) {
@@ -219,6 +250,7 @@ describe('Test Authentication', () => {
         app.auth.allowAnonymous = true;
     });
 
+
     it('Can access API root without JWT if anonymous access is allowed', done => {
         app.auth.allowAnonymous = true;
         request(server).get('/api/v1').expect(200, done);
@@ -298,8 +330,7 @@ describe('Test Authentication', () => {
 
     it('Can refresh token using /auth/refresh', done => {
         // modify the user email
-        USER_EMAIL = 'john@doe.com';
-
+        USERS.Foo.email = 'john@doe.com';
         request(server).post('/auth/refresh')
         .set('Cookie', authCookie)
         .set('x-koa-webapp-request-token', 'true')
@@ -307,14 +338,14 @@ describe('Test Authentication', () => {
         .expect(200).then(res => {
             authToken = res.body.token;
             principal = res.body.principal;
-            assert.strictEqual(principal.email, USER_EMAIL);
+            assert.strictEqual(principal.email, 'john@doe.com');
             done();
         }).catch(err=>done(err));
     });
 
     it('Can refresh token using /auth/token and x-koa-webapp-request-token:refresh header', done => {
         // modify the user email
-        USER_EMAIL = 'jane@doe.com';
+        USERS.Foo.email = 'jane@doe.com';
 
         request(server).post('/auth/token')
         .set('Cookie', authCookie)
@@ -323,7 +354,7 @@ describe('Test Authentication', () => {
         .expect(200).then(res => {
             authToken = res.body.token;
             principal = res.body.principal;
-            assert.strictEqual(principal.email, USER_EMAIL);
+            assert.strictEqual(principal.email, 'jane@doe.com');
             done();
         }).catch(err=>done(err));
     });

@@ -1,4 +1,6 @@
 const Principal = require("./principal");
+const Anonymous = require('./anonymous.js');
+const Superuser = require("./superuser");
 
 function extractTokenFromHeader(ctx) {
     if (ctx.header && ctx.header.authorization) {
@@ -54,7 +56,7 @@ class KoaAuthentication {
         let token;
         if (this.auth.cookie) {
             if (principal) {
-                token = this.auth.signJWT(principal.toJWT());
+                token = this.auth.signJWT(principal);
                 ctx.cookies.set(this.auth.cookie.name, token, this.auth.cookie);
             } else {
                 // remove the cookie: we cannot use ctx.cookies.set(this.auth.cookie.name) since the cookie path is not srt
@@ -82,6 +84,10 @@ class KoaAuthentication {
 
     getPrincipal(ctx) {
         return ctx.state[this.principalKey];
+    }
+
+    pushSuperuser(ctx) {
+        this.setPrincipal(ctx, Superuser);
     }
 
     pushPrincipal(ctx, principal) {
@@ -143,7 +149,7 @@ class KoaAuthentication {
                             // recreate a principal from the user store
                             principal = this.auth.refreshLogin(principal);
                         } // else reuse the same principal
-                        token = this.auth.signJWT(principal.toJWT());
+                        token = this.auth.signJWT(principal);
                         // reset the cookie expiry time
 
                         ctx.cookies.set(name, token, this.auth.cookie);
@@ -196,7 +202,7 @@ class KoaAuthentication {
                 }
             } else if (this.auth.allowAnonymous) {
                 // access as anonymous user
-                principal = this.auth.anonymous;
+                principal = Anonymous;
             } else {
                 // anonymous access is not allowed so we retun 401
                 ctx.throw(401);
@@ -230,7 +236,7 @@ class KoaAuthentication {
                     const principal = this.auth.passwordLogin(username, password);
                     let token = this.login(ctx, principal);
                     if (!token) {
-                        token = thid.auth.signJWT(principal.toJWT());
+                        token = this.auth.signJWT(principal);
                     }
                     ctx.body = {
                         principal: principal,

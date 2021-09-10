@@ -40,22 +40,31 @@ A configurable class defining a web application which embeds a koa app instance.
 
 The web app instance will be available to all `Resource` objects through the `app` property, so you can easily access the global services. Also, the web app instance will be aavilable on the koa instance as the `webapp` property so you can access the web app from any middleware.
 
-To configure the application you will need to pass your custom options through the argument of the base class constructor. The only abstract method that you **must define** is: `findUser(emailOrName)` which is used to retrieve an user account given its name or email. If no user is found you must return a falsy value (e.g. null). This method will be used to login users.
-The returned User object may define the following fields:
+To configure the application you will need to pass your custom options through the argument of the base class constructor. There are only two options which are required: `findUser` and `verifyPassword`. The `verifyPassword` is only required if you are using password based logins. An alternative way to specify these functions is to extend the WebApp class and specify them as instance methods.
+
+### User authentication
+
+When a login is done the user object correspondig to the given username will be retrieved using the `findUser(usernameOrEmail)` function which a should return an User object or null if not found. The User object is defined by your application. In the case of a password login the `verifyPassword(user, password)` function will be used to test if the password matches. If login is successful a principal object will be created from the User object. The principal is a light object that only contains properties needed for permission checks. What you put inside the principal object is your choice. The default Principal implementation will copy the following fields from the `User` object on the Principal object:
 
 ```
-    User {
-        id, // the user ID
-        email, // the user email
-        nickname, // a name to be displayed in UI
-        role, // a string to be used by your permission system
-        groups // an array of group names to be used by your permission system
-    }
+User {
+    id, // the user ID
+    nickname, // a name to be displayed in UI
+    role // a string to be used by your permission system
+}
 ```
 
-All these fields are optional and are used to fill the `Principal` object which will be created when an user successfully login. The `Principal` object will be available to the middlewares and also will be sent to the client application in the form of an JWT token.
+The login name (which can be an email) will be used as the `Principal.name` property.
 
-It is up to you how you use the provided information to check the user permissions.
+You can change the fields which are copied from the User object to the principal object by extending the Principal class and registering it trhough the 'principal' options. In that case you need to overwrite three methods: `fromUser(user)`, `fromJWT(token)`, `writeJWT(token)`.
+
+The `fromJWT` and `writeJWT` methods are used to create a JWT for this principal and to read nback the JWT into a principal. When creating a JWT the principal name will be used as the `sub` claim. The defualt implementation is doing the following mapping:
+
+```
+principal.id <-> jwt.user
+principal.nickname <-> jwt.nickname
+principal.role <-> jwt.role
+```
 
 ### Example
 
@@ -90,6 +99,10 @@ class MyApp extends WebApp {
     findUser(nameOrEmail) {
         return this.userStore.find(nameOrEmail);
     }
+
+    verifyPassword(user, password) {
+        return user.password && hash(password) === user.password;
+    }
 }
 
 const app = new MyApp();
@@ -109,6 +122,9 @@ The `WebApp` class provides two methods `callback()` and `listen()` that are sho
 
 You can configure the application by passing an options object to the WebApp super constructor. here is the list of all the options:
 
+* **findUser** - this option is **required**. Specify a function to find users given the login name (which can be an email or an user name). Returns an User object that will be used to create a Principal. Signature: ` User findUser(nameOrEmail)`
+* **verifyPassword(user, password)** - this option is **required** if you are using password based login. Check if the given password match the user password. Return true or false.
+* **principal** - custom `Principal` class to use.
 * **proxy** - property passed to koa. See `koa.proxy`.
 * **prefix** - the prefix to be used to mount the main router. Defaults to '/'
 * **secret** - a string or array of string to be used as the secret(s) when signing and verifying JWTs. The secret will also be used to initialize the koa `keys` property.

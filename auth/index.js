@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const Principal = require('./principal.js')
+const Principal = require('./principal.js');
 const KoaAuthentication = require('./koa.js');
 
 const USER_NOT_FOUND = 'USER_NOT_FOUND';
@@ -28,7 +28,9 @@ class AuthService {
      * Create an authentications ervice instnce.
      * Optios:
      *{
-     *   findUser: function,
+     *   findUser: function(name),
+     *   verifyPassword: function(user, password), // a function to verify if a user password match the given password
+     *   principal: class extending Principal, // the Principal class to use defaults to builtin Principal
      *   secret: string | array,
      *   allowAnoymous: false, // allow anonymous to access
      *   requestTokenHeader: 'x-koa-webapp-request-token',
@@ -52,6 +54,7 @@ class AuthService {
             opts.requestTokenHeader = 'x-koa-webapp-request-token';
         }
         this.opts = opts;
+        this.Principal = opts.principal || Principal;
         const secretOpt = opts.secret;
         if (typeof secretOpt === 'string') {
             this.secrets = [secretOpt];
@@ -59,10 +62,6 @@ class AuthService {
             this.secrets = secretOpt;
         }
         this.allowAnonymous = opts.allowAnonymous || false;
-        // anonymous virtual principal
-        this.anonymous = Object.freeze(this.createPrincipal('#anonymous'));
-        // admin virtual principal
-        this.admin = Object.freeze(this.createPrincipal('#admin'));
         // jwt options:
         this.jwtSignOpts = Object.assign({
             expiresIn: "3h",
@@ -92,10 +91,6 @@ class AuthService {
         this.koa = new KoaAuthentication(this);
     }
 
-    hash(text) {
-        return crypto.createHash('md5').update(text).digest('hex');
-    }
-
     findUser(name) {
         const user = this.opts.findUser(name);
         if (!user) {
@@ -105,18 +100,8 @@ class AuthService {
     }
 
     createPrincipal(name, userData) {
-        let principal;
-        if (userData) {
-            principal = new Principal(name).fromUser(userData);
-        } else {
-            if (name === '#anonymous') {
-                principal = new Principal(name, Principal.ANONYMOUS);
-            } else if (name === '#admin') {
-                principal = new Principal(name, Principal.ADMIN);
-            } else {
-                throw new Error('Invalid vritual principal name: '+name+'. Only "#anonymous" and "#admin" are accepted');
-            }
-        }
+        let principal = new this.Principal(name);
+        principal.fromUser(userData);
         return principal;
     }
 
@@ -130,7 +115,10 @@ class AuthService {
      */
     passwordLogin(name, password) {
         const user = this.findUser(name);
-        if (user.password && this.hash(password) !== user.password) {
+        if (!this.opts.verifyPassword) {
+            throw new Error('No verifyPassword method defined');
+        }
+        if (!this.opts.verifyPassword(user, password)) {
             throw new PasswordMismatchError(name);
         }
         return this.createPrincipal(name, user);
@@ -155,7 +143,10 @@ class AuthService {
      * @returns the principal corresponding to the JWT
      */
     jwtLogin(token) {
-        return new Principal().fromJWT(this.verifyJWT(token));
+        const decodedToken = this.verifyJWT(token);
+        const principal = new this.Principal(decodedToken.sub);
+        principal.fromJWT(decodedToken);
+        return principal;
     }
 
     /**
@@ -182,7 +173,9 @@ class AuthService {
         return decodedToken;
     }
 
-    signJWT(payload, opts) {
+    signJWT(principal, opts) {
+        const payload = { sub: principal.name };
+        principal.writeJWT(payload);
         opts = Object.assign(this.jwtSignOpts, opts || {});
         return jwt.sign(payload, this.secrets[0], this.jwtSignOpts);
     }
