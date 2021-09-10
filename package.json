@@ -1,6 +1,6 @@
 {
   "name": "koa-webapp",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Generic web application implementation with built-in routing and authentication support",
   "main": "index.js",
   "files": [
