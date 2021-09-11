@@ -105,18 +105,20 @@ class MyApp extends WebApp {
     }
 }
 
-const app = new MyApp();
-app.listen(8080);
+new MyApp().start(8080);
 ```
 
 You can access the `koa` instance using the `koa` property: `app.koa`. Also, the `WebApp` instance can be accessed from the `koa` instance using the `webapp` property: `koa.webapp`.  \
-The `WebApp` class provides two methods `callback()` and `listen()` that are shortcuts to the same methods of the embeded `koa` instance.
+The `WebApp` class provides a `callback()` method which is shortcut to the embeded `koa` instance method with the same name. To start the application invoke the `start(port)` method which is returning a promise which resolves when the http server is ready. To control how the http server is created you need to overwrite the `createServer` method (if you need for example to use https). The default createServer method is just creating a http server using the koa's callback: `return http.createServer(this.callback());`
+
+You can optionally define a method named `aboutToStart(port)` on the WebApp class to be called after the setup is done and before the http server starts listening.
 
 ### Properties:
 
 * **koa** - the embeded instance of koa.
 * **router** - the main router mounted in '/'
 * **auth** - the authentication service instance.
+* **server** - the embeded http server
 
 ### Options
 
@@ -154,13 +156,19 @@ You can configure the application by passing an options object to the WebApp sup
 * **jwtVerifyOpts** - options passed to `jwtwebtoken.verify()`. Defauilts to `udnefined`
 * **bodyOptions** - options passed to the body parser. Defaults to `undefined`. See the Request Body section for more details
 * **errorHandlerOptions** - options passed to the error handler. Defaults to `undefined`. See the Error handling section for details.
+* **quiet** - if false do not print the start listening message. Default is false.
 
 ### Methods
 
 * **findUser(nameorEmail)** - an absract method used to find users given a login name. This is the only method you **must** define when creating a web application.
-* **listen()** - shortcut to koa listen method
 * **callback()** - shortcut to koa callback method
-* **setup()** - setup the application routes. You can overwrite it to add custom routes or completely redefine the application layout.
+* **createServer()** - Create and return the http server: `return http.createServer(this.callback());`.
+To use https you must extends the WebApp class and overwrite this method.
+* **start(port)** - start the webapp and start listening the given port. A promise is returned which is resolved when the http server starts listening.
+* **stop()** - stop the web server.
+* **aboutToStart(port)** - You can define this method to be called after the setup is done and before the http server starts listening. You can perform any asynchrnous initialization here.
+* **aboutToStop()** - You can define this method to be called when `stop()` was invoked and before the web server stops listening. You can do any asynchronous cleanup here.
+* **setup()** - setup the application. You can overwrite it to add custom routes or completely redefine the application layout.
 * **setupFilters(router)** - Setup middlewares invoked at the begining before doing any resource matching. By default it does nothing.
 * **setupAuth(authRouter, auth)** - setup auth endpoints (it will override default endpoints so you need to call super.setupAuth() to have the default endpoints created).
 * **setupApiFilters(apiRouter, auth)** - setup additional middlewares to be called before matching API resources. By default it adds a middleware that protect the access to the api router resources by checking the `Authorization` header for a JWT bearer token.
@@ -240,13 +248,15 @@ A resource may define a special method `visit(ctx)` that will be called before t
 ```javascript
 
 class MyApp extends WebApp {
+
+    constructor() {
+        super({apiRoot: Root});
+    }
+
     findUser(name) {
         // do something
     }
 
-    get apiRoot() {
-        return Root;
-    }
 }
 
 class Root extends WebApp.Resource {

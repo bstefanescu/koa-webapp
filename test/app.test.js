@@ -94,12 +94,13 @@ let server;
 const app = new TestWebApp();
 app.version = '1.0';
 
-before(() => {
-    server = app.listen(9099, () => false); // silent mode
+before(async () => {
+    await app.start(9099); // silent mode
+    server = app.server;
 });
 
 after(() => {
-    server.close();
+    app.server.close();
 })
 
 describe('Test static routes', () => {

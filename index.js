@@ -1,3 +1,4 @@
+const http = require('http');
 const crypto = require('crypto');
 const path = require('path');
 const Koa = require('koa');
@@ -33,9 +34,6 @@ class WebApp {
         });
         Body.install(koa, opts.bodyOptions);
         this.opts = opts;
-        this.setup();
-        // add routes
-        koa.use(this.router.middleware());
     }
 
     get defaultOptions() {
@@ -148,13 +146,33 @@ class WebApp {
         return this.koa.callback();
     }
 
-    listen(port, cb) {
-        return this.koa.listen(port, () => {
-            if (cb) {
-                if (cb(this) === false) return; // quiet mode
-            }
-            console.log(`App listening on port ${port}\nPress Ctrl+C to quit.`);
-        })
+    createServer() {
+        return http.createServer(this.callback());
+    }
+
+    async start(port, cb) {
+        await this.setup();
+        // add routes
+        this.koa.use(this.router.middleware());
+        if (this.aboutToStart) {
+            await this.aboutToStart();
+        }
+        // start http server
+        return new Promise((resolve, reject) => {
+            this.server = this.createServer();
+            this.server.listen(port, () => {
+                if (!this.opts.quiet) console.log(`App listening on port ${port}\nPress Ctrl+C to quit.`);
+                resolve(this);
+            });
+        });
+    }
+
+    async stop() {
+        if (this.aboutToStop) {
+            await this.aboutToStop();
+        }
+        this.server.close();
+        this.server = null;
     }
 
 }
