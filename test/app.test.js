@@ -100,7 +100,7 @@ before(async () => {
 });
 
 after(() => {
-    app.server.close();
+    app.stop();
 })
 
 describe('Test static routes', () => {

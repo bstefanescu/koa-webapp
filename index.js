@@ -38,6 +38,7 @@ class WebApp {
 
     get defaultOptions() {
         return {
+            exitHooks: true,
             prefix: '/',
             secret: [ crypto.randomBytes(48).toString('hex') ],
             notFoundMessage: 'Resource not found',
@@ -154,11 +155,20 @@ class WebApp {
         await this.setup();
         // add routes
         this.koa.use(this.router.middleware());
-        if (this.aboutToStart) {
-            await this.aboutToStart();
+        // install exit hooks
+        if (this.opts.exitHooks) {
+            const onSigExit = async signal => {
+                await this.stop();
+                process.exit(0);
+            }
+            process.on('SIGINT', onSigExit);
+            process.on('SIGTERM', onSigExit);
+        }
+        if (this.onStart) {
+            await this.onStart();
         }
         // start http server
-        return new Promise((resolve, reject) => {
+        return new Promise(resolve => {
             this.server = this.createServer();
             this.server.listen(port, () => {
                 if (!this.opts.quiet) console.log(`App listening on port ${port}\nPress Ctrl+C to quit.`);
@@ -167,12 +177,18 @@ class WebApp {
         });
     }
 
-    async stop() {
-        if (this.aboutToStop) {
-            await this.aboutToStop();
+    stop() {
+        if (this.server) {
+            return new Promise(resolve => {
+                this.server.close(async () => {
+                    if (this.onStop) {
+                        await  this.onStop();
+                    }
+                    this.server = null;
+                    resolve();
+                });
+            });
         }
-        this.server.close();
-        this.server = null;
     }
 
 }

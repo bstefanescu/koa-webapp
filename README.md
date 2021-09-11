@@ -111,7 +111,7 @@ new MyApp().start(8080);
 You can access the `koa` instance using the `koa` property: `app.koa`. Also, the `WebApp` instance can be accessed from the `koa` instance using the `webapp` property: `koa.webapp`.  \
 The `WebApp` class provides a `callback()` method which is shortcut to the embeded `koa` instance method with the same name. To start the application invoke the `start(port)` method which is returning a promise which resolves when the http server is ready. To control how the http server is created you need to overwrite the `createServer` method (if you need for example to use https). The default createServer method is just creating a http server using the koa's callback: `return http.createServer(this.callback());`
 
-You can optionally define a method named `aboutToStart(port)` on the WebApp class to be called after the setup is done and before the http server starts listening.
+You can optionally define a method named `onStart(port)` on the WebApp class to be called after the setup is done and before the http server starts listening.
 
 ### Properties:
 
@@ -141,6 +141,7 @@ You can configure the application by passing an options object to the WebApp sup
 * **requestTokenHeader** - the header name that must be used to request a JWT token from the secure authorization cookie. Defaults to `x-koa-webapp-request-token`.
 * **allowAnonymous** - if `true` un-authenticated users will be able to access the protected resources (e.g. the API resources). Defaults to `false`. This can be usefull to let un-authenticated users to ccess the application in read only mode.
 * **authCookie** - can be a string or an object containing options for the authorization cookie passed to `koa.cookies`. If you only want to change the cookie name you can return a string with that name. If you return an object with cookie options you can also change the cookie name by including a name property in the returned object. The default value is:
+* **exitHooks** - defaults to true. If true install, at atsartup, the SIGTERM nd SIGINT hooks to stop the app.
 
 ```json
 {
@@ -166,8 +167,8 @@ You can configure the application by passing an options object to the WebApp sup
 To use https you must extends the WebApp class and overwrite this method.
 * **start(port)** - start the webapp and start listening the given port. A promise is returned which is resolved when the http server starts listening.
 * **stop()** - stop the web server.
-* **aboutToStart(port)** - You can define this method to be called after the setup is done and before the http server starts listening. You can perform any asynchrnous initialization here.
-* **aboutToStop()** - You can define this method to be called when `stop()` was invoked and before the web server stops listening. You can do any asynchronous cleanup here.
+* **onStart(port)** - You can define this method to be called after the setup is done and before the http server starts listening. You can perform any asynchrnous initialization here.
+* **onStop()** - You can define this method to be called when `stop()` was invoked and after the web server stops listening. You can do any asynchronous cleanup here.
 * **setup()** - setup the application. You can overwrite it to add custom routes or completely redefine the application layout.
 * **setupFilters(router)** - Setup middlewares invoked at the begining before doing any resource matching. By default it does nothing.
 * **setupAuth(authRouter, auth)** - setup auth endpoints (it will override default endpoints so you need to call super.setupAuth() to have the default endpoints created).
