@@ -91,8 +91,8 @@ class AuthService {
         this.koa = new KoaAuthentication(this);
     }
 
-    findUser(name) {
-        const user = this.opts.findUser(name);
+    async findUser(name) {
+        const user = await this.opts.findUser(name);
         if (!user) {
             throw new UserNotFoundError(name);
         }
@@ -113,24 +113,25 @@ class AuthService {
      * @param {*} password
      * @returns a principal object
      */
-    passwordLogin(name, password) {
-        const user = this.findUser(name);
+    async passwordLogin(name, password) {
+        const user = await this.findUser(name);
         if (!this.opts.verifyPassword) {
             throw new Error('No verifyPassword method defined');
         }
-        if (!this.opts.verifyPassword(user, password)) {
+        if (await this.opts.verifyPassword(user, password) === true) {
+            return this.createPrincipal(name, user);
+        } else {
             throw new PasswordMismatchError(name);
         }
-        return this.createPrincipal(name, user);
     }
 
-    refreshLogin(principal) {
+    async refreshLogin(principal) {
         if (principal.isVirtual) {
             // a virtual user - return back the principal
             return principal;
         } else {
             // fetch the user again to re-create the principal
-            return this.createPrincipal(principal.name, this.findUser(principal.name));
+            return this.createPrincipal(principal.name, await this.findUser(principal.name));
         }
 
     }

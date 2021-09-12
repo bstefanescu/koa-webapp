@@ -40,7 +40,7 @@ A configurable class defining a web application which embeds a koa app instance.
 
 The web app instance will be available to all `Resource` objects through the `app` property, so you can easily access the global services. Also, the web app instance will be aavilable on the koa instance as the `webapp` property so you can access the web app from any middleware.
 
-To configure the application you will need to pass your custom options through the argument of the base class constructor. There are only two options which are required: `findUser` and `verifyPassword`. The `verifyPassword` is only required if you are using password based logins. An alternative way to specify these functions is to extend the WebApp class and specify them as instance methods.
+To configure the application you will need to pass your custom options through the argument of the base class constructor. There are only two options which are required: `findUser` and `verifyPassword`. The `verifyPassword` is only required if you are using password based logins and must return `true` if the password matches. An alternative way to specify these functions is to extend the WebApp class and specify them as instance methods. Both fucntions can be asynchrnous and may return a promise.
 
 ### User authentication
 
@@ -141,7 +141,7 @@ You can configure the application by passing an options object to the WebApp sup
 * **requestTokenHeader** - the header name that must be used to request a JWT token from the secure authorization cookie. Defaults to `x-koa-webapp-request-token`.
 * **allowAnonymous** - if `true` un-authenticated users will be able to access the protected resources (e.g. the API resources). Defaults to `false`. This can be usefull to let un-authenticated users to ccess the application in read only mode.
 * **authCookie** - can be a string or an object containing options for the authorization cookie passed to `koa.cookies`. If you only want to change the cookie name you can return a string with that name. If you return an object with cookie options you can also change the cookie name by including a name property in the returned object. The default value is:
-* **exitHooks** - defaults to true. If true install, at atsartup, the SIGTERM nd SIGINT hooks to stop the app.
+* **exitHooks** - defaults to true. If true install, at tsartup, the SIGTERM and SIGINT hooks to stop the app.
 
 ```json
 {
@@ -161,7 +161,6 @@ You can configure the application by passing an options object to the WebApp sup
 
 ### Methods
 
-* **findUser(nameorEmail)** - an absract method used to find users given a login name. This is the only method you **must** define when creating a web application.
 * **callback()** - shortcut to koa callback method
 * **createServer()** - Create and return the http server: `return http.createServer(this.callback());`.
 To use https you must extends the WebApp class and overwrite this method.
@@ -263,7 +262,7 @@ class MyApp extends WebApp {
 class Root extends WebApp.Resource {
 
     get(ctx) {
-        ctx.body = hello;
+        ctx.body = 'hello';
     }
 
     // setup routes

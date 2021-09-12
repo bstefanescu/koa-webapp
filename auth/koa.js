@@ -125,7 +125,7 @@ class KoaAuthentication {
      * Get the JWT token if there is a cookie containing a jwt token (the cookie name is controlled by the cookie.name option)
      * @param {*} ctx
      */
-    token(ctx, refresh) {
+    async token(ctx, refresh) {
         if (ctx.method !== 'POST') {
             ctx.throw(405);
         }
@@ -147,7 +147,7 @@ class KoaAuthentication {
                         let principal = this.auth.jwtLogin(token);
                         if (refresh) {
                             // recreate a principal from the user store
-                            principal = this.auth.refreshLogin(principal);
+                            principal = await this.auth.refreshLogin(principal);
                         } // else reuse the same principal
                         token = this.auth.signJWT(principal);
                         // reset the cookie expiry time
@@ -174,14 +174,14 @@ class KoaAuthentication {
      * @param {*} ctx
      */
     refreshMiddleware() {
-        return ctx => {
-            return this.token(ctx, true);
+        return async ctx => {
+            return await this.token(ctx, true);
         }
     }
 
     tokenMiddleware() {
-        return ctx => {
-            return this.token(ctx, false);
+        return async ctx => {
+            return await this.token(ctx, false);
         }
     }
 
@@ -233,7 +233,7 @@ class KoaAuthentication {
                 if (!username) ctx.throw(400, null, {status: 400, error: 'Username cannot be empty'});
                 if (!password) ctx.throw(400, null, {status: 400, error: 'Password cannot be empty'});
                 try {
-                    const principal = this.auth.passwordLogin(username, password);
+                    const principal = await this.auth.passwordLogin(username, password);
                     let token = this.login(ctx, principal);
                     if (!token) {
                         token = this.auth.signJWT(principal);
