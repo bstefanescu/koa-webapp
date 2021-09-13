@@ -196,7 +196,7 @@ In `/auth` there are the folloing endpoints:
 
 ## The Resource class
 
-The router supports to types of bindings:
+The router supports two types of bindings:
 
 1. Classic bindings when you bind a path pattern to a middleware and optionally an HTTP method. Example:
 

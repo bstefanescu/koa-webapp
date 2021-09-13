@@ -172,6 +172,10 @@ Body.install = (koa, opts={}) => {
                 this._body = createBody(this, opts);
             }
             return this._body;
+        },
+        // be able to work along code using koa2-formidable (wich sets the body property pf the request)
+        set(body) {
+            this._body = body;
         }
     });
 }
