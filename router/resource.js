@@ -19,7 +19,7 @@ class RoutesBuilder {
 
     use(pattern, target) {
         if (!target || !(target.prototype instanceof Resource)) {
-            throw new Error('Invalid route target. Only classes extending Resource can be registered using `use`. Use `get`, `post` etc. to register methods. Got: '+target);
+            throw new Error('Invalid route target. Only classes extending Resource can be registered using `use`. Use `get`, `post` etc. to register methods. Got: ' + target);
         }
         const res = new target();
         res._init(this.resource.app, pattern);
@@ -130,7 +130,7 @@ class Resource {
             const router = new RoutesBuilder(this);
             this.setup(router);
             if (router.routes.length > 0) {
-                const lastc = pattern[pattern.length-1];
+                const lastc = pattern[pattern.length - 1];
                 if (lastc === '*' || lastc === '+' || lastc === '?') {
                     throw new Error('Cannot add nested resources to resource with patterns ending in + * or ?');
                 }
@@ -166,12 +166,12 @@ class Resource {
             this.visit && visitors.push(this);
             let theRest;
             if (m === true) { // a prefix match: '/api/*'
-                theRest = path.substring(this._pattern.length-2);
-                if (theRest) Object.assign(params, {'_': theRest});
+                theRest = path.substring(this._pattern.length - 2);
+                if (theRest) Object.assign(params, { '_': theRest });
             } else { // a path-to-regexp match
                 theRest = m.params._;
-                 // path-to-regexp return an array of segments
-                if (theRest) theRest = '/'+theRest.join('/');
+                // path-to-regexp return an array of segments
+                if (theRest) theRest = '/' + theRest.join('/');
                 Object.assign(params, m.params);
             }
             if (this._routes && theRest && theRest.length) {
@@ -194,7 +194,11 @@ class Resource {
     }
 
     dispatch(ctx, next) {
-        const methodFn = this[lcMethod(ctx)];
+        const methodName = lcMethod(ctx);
+        let methodFn = this[methodName];
+        if (!methodFn && methodName === 'delete') {
+            methodFn = this.del; // try 'del'
+        }
         if (methodFn) {
             return methodFn.call(this, ctx, next)
         } else {

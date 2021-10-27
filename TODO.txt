@@ -1,0 +1,17 @@
+
+Add statefull auth:
+    - add Principal.key field.
+    - add Principal.expireAt field.
+
+WebApp {
+    storePrincipal(principal) {
+
+    }
+
+    Principal lookupPrincipal(key) {
+
+    }
+}
+
+the principal key can then be used as an access_token that can be retrieved using:
+x-koa-webapp-token-request: 'access_token'
